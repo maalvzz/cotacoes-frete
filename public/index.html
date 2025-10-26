@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotações de Frete</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div>
+                    <h1>Cotações de Frete</h1>
+                </div>
+            </div>
+            <div id="connectionStatus" class="connection-status offline">
+                <span class="status-dot"></span>
+                <span>Verificando...</span>
+            </div>
+        </div>
+
+        <button onclick="toggleForm()" style="margin-bottom: 1rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/>
+                <path d="M12 5v14"/>
+            </svg>
+            Nova Cotação
+        </button>
+
+        <div id="statusMessage" class="hidden"></div>
+
+        <div class="card hidden" id="formCard">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span id="formTitle">Nova Cotação</span>
+            </h2>
+            <form id="cotacaoForm" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="responsavelCotacao">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            Responsável pela Cotação *
+                        </label>
+                        <select id="responsavelCotacao" required>
+                            <option value="">Selecione...</option>
+                            <option value="Roberto">Roberto</option>
+                            <option value="Gustavo">Gustavo</option>
+                            <option value="Isaque">Isaque</option>
+                            <option value="Miguel">Miguel</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transportadora">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+                                <path d="M15 18H9"/>
+                                <path d="M19 18h2a1 1 0 0 0 1-1v-3.28a1 1 0 0 0-.684-.948l-1.923-.641a1 1 0 0 1-.578-.579l-1.5-4.5A1 1 0 0 0 16.382 7H14"/>
+                                <circle cx="8" cy="18" r="2"/>
+                                <circle cx="18" cy="18" r="2"/>
+                            </svg>
+                            Transportadora *
+                        </label>
+                        <select id="transportadora" required>
+                            <option value="">Selecione...</option>
+                            <option value="TNT MERCURIO">TNT MERCURIO</option>
+                            <option value="CORREIOS">CORREIOS</option>
+                            <option value="BRASPRESS">BRASPRESS</option>
+                            <option value="CONTINENTAL">CONTINENTAL</option>
+                            <option value="JAMEF">JAMEF</option>
+                            <option value="TG TRANSPORTES">TG TRANSPORTES</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="destino">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            Destino (Município - Estado) *
+                        </label>
+                        <input type="text" id="destino" placeholder="Ex: São Paulo - SP" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numeroCotacao">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                                <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                                <path d="M10 9H8"/>
+                                <path d="M16 13H8"/>
+                                <path d="M16 17H8"/>
+                            </svg>
+                            Número da Cotação
+                        </label>
+                        <input type="text" id="numeroCotacao" placeholder="Deixe vazio se não informado">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="valorFrete">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <line x1="12" x2="12" y1="2" y2="22"/>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                            Valor do Frete (R$) *
+                        </label>
+                        <input type="number" id="valorFrete" step="0.01" min="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vendedor">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            Vendedor
+                        </label>
+                        <select id="vendedor">
+                            <option value="">Selecione...</option>
+                            <option value="Roberto">Roberto</option>
+                            <option value="Isaque">Isaque</option>
+                            <option value="Miguel">Miguel</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numeroDocumento">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            Documento
+                        </label>
+                        <input type="text" id="numeroDocumento" placeholder="Ex: EMPENHO: 2025/1896">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="previsaoEntrega">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                                <line x1="16" x2="16" y1="2" y2="6"/>
+                                <line x1="8" x2="8" y1="2" y2="6"/>
+                                <line x1="3" x2="21" y1="10" y2="10"/>
+                            </svg>
+                            Previsão de Entrega
+                        </label>
+                        <input type="date" id="previsaoEntrega">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="canalComunicacao">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            Canal de Comunicação
+                        </label>
+                        <input type="text" id="canalComunicacao" placeholder="Ex: WhatsApp, E-mail, Telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="codigoColeta">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                            </svg>
+                            Código de Coleta
+                        </label>
+                        <input type="text" id="codigoColeta" placeholder="Deixe vazio se não informado">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="responsavelTransportadora">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <line x1="19" y1="8" x2="19" y2="14"/>
+                                <line x1="22" y1="11" x2="16" y2="11"/>
+                            </svg>
+                            Responsável da Transportadora
+                        </label>
+                        <input type="text" id="responsavelTransportadora" placeholder="Nome do contato">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dataCotacao">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            Data da Cotação *
+                        </label>
+                        <input type="date" id="dataCotacao" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observacoes">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                                <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                                <path d="m15 5 4 4"/>
+                            </svg>
+                            Observações
+                        </label>
+                        <textarea id="observacoes" placeholder="Informações adicionais..."></textarea>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit">
+                        <span id="submitIcon">✓</span>
+                        <span id="submitText">Registrar Cotação</span>
+                    </button>
+                    <button type="button" class="secondary hidden" id="cancelBtn" onclick="cancelEdit()">
+                        ✕ Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="month-selector">
+                <button onclick="changeMonth(-1)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m15 18-6-6 6-6"/>
+                    </svg>
+                    Anterior
+                </button>
+                <span id="currentMonth"></span>
+                <button onclick="changeMonth(1)">
+                    Próximo
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="filter-section">
+                <div class="form-group">
+                    <label for="search">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.3-4.3"/>
+                        </svg>
+                        Pesquisar
+                    </label>
+                    <input type="text" id="search" placeholder="Digite transportadora, documento, destino..." oninput="filterCotacoes()">
+                </div>
+
+                <div class="form-group">
+                    <label for="filterResponsavel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                            <path d="M3 6h18"/>
+                            <path d="M7 12h10"/>
+                            <path d="M10 18h4"/>
+                        </svg>
+                        Filtrar por Responsável
+                    </label>
+                    <select id="filterResponsavel" onchange="filterCotacoes()">
+                        <option value="">Todos</option>
+                        <option value="Roberto">Roberto</option>
+                        <option value="Gustavo">Gustavo</option>
+                        <option value="Isaque">Isaque</option>
+                        <option value="Miguel">Miguel</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterTransportadora">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                            <path d="M3 6h18"/>
+                            <path d="M7 12h10"/>
+                            <path d="M10 18h4"/>
+                        </svg>
+                        Filtrar por Transportadora
+                    </label>
+                    <select id="filterTransportadora" onchange="filterCotacoes()">
+                        <option value="">Todas</option>
+                        <option value="TNT MERCURIO">TNT MERCURIO</option>
+                        <option value="CORREIOS">CORREIOS</option>
+                        <option value="BRASPRESS">BRASPRESS</option>
+                        <option value="CONTINENTAL">CONTINENTAL</option>
+                        <option value="JAMEF">JAMEF</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterStatus">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                        Filtrar por Status
+                    </label>
+                    <select id="filterStatus" onchange="filterCotacoes()">
+                        <option value="">Todos</option>
+                        <option value="fechado">Negócios Fechados</option>
+                        <option value="aberto">Em Aberto</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"/>
+                    <path d="m19 9-5 5-4-4-3 3"/>
+                </svg>
+                Cotações Registradas
+            </h2>
+            <div class="table-container">
+                <div id="cotacoesContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
