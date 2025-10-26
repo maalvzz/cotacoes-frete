@@ -1,4 +1,5 @@
-const API_URL = 'https://cotacoes-frete.onrender.com';
+// CORREÇÃO: adicionei /api/cotacoes no final da URL
+const API_URL = 'https://cotacoes-frete.onrender.com/api/cotacoes';
 const STORAGE_KEY = 'cotacoes_frete';
 const POLLING_INTERVAL = 10000;
 
@@ -103,7 +104,8 @@ function showRealtimeUpdate() {
 
 async function checkServerStatus() {
     try {
-        const response = await fetch(`${API_URL.replace('/api/cotacoes', '/health')}`, { 
+        // CORREÇÃO: URL do health check correta
+        const response = await fetch('https://cotacoes-frete.onrender.com/health', { 
             method: 'GET',
             cache: 'no-cache'
         });
@@ -250,7 +252,7 @@ async function handleSubmit(event) {
     } finally {
         isSubmitting = false;
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span id="submitIcon">✔</span> <span id="submitText">Registrar Cotacao</span>';
+        submitBtn.innerHTML = '<span id="submitIcon">✓</span> <span id="submitText">Registrar Cotacao</span>';
     }
 }
 
@@ -359,7 +361,7 @@ function resetForm() {
     document.getElementById('cotacaoForm').reset();
     document.getElementById('editId').value = '';
     document.getElementById('formTitle').textContent = 'Nova Cotacao';
-    document.getElementById('submitIcon').textContent = '✔';
+    document.getElementById('submitIcon').textContent = '✓';
     document.getElementById('submitText').textContent = 'Registrar Cotacao';
     document.getElementById('cancelBtn').classList.add('hidden');
     setTodayDate();
@@ -428,7 +430,7 @@ function renderCotacoes(filtered) {
             <tbody>
                 ${filtered.map(c => `
                     <tr class="${c.negocioFechado ? 'negocio-fechado' : ''}">
-                        <td><button class="small ${c.negocioFechado ? 'success' : 'secondary'}" onclick="toggleNegocio('${c.id}')">✔</button></td>
+                        <td><button class="small ${c.negocioFechado ? 'success' : 'secondary'}" onclick="toggleNegocio('${c.id}')">✓</button></td>
                         <td><span class="badge ${c.negocioFechado ? 'fechado' : ''}">${c.responsavelCotacao}</span></td>
                         <td>${c.transportadora}</td><td>${c.destino || 'Nao Informado'}</td>
                         <td>${c.numeroCotacao}</td><td class="valor">R$ ${c.valorFrete.toFixed(2)}</td>
