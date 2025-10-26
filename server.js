@@ -175,12 +175,35 @@ app.delete('/api/cotacoes/:id', async (req, res) => {
 // ==========================================
 // FRONTEND - SERVIR INTERFACE
 // ==========================================
-// CORREÇÃO: mudei de 'público' para 'public'
-app.use('/app', express.static(path.join(__dirname, 'public')));
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota para servir a interface do usuário
-app.get('/app', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Rota raiz agora serve a interface (em vez de JSON)
+app.get('/', (req, res) => {
+    // Se for requisição de navegador, serve HTML
+    if (req.headers.accept && req.headers.accept.includes('text/html')) {
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    } else {
+        // Se for API, retorna JSON
+        res.json({
+            message: '🚀 API de Cotações de Frete',
+            version: '2.0.0',
+            status: 'online',
+            database: 'Supabase',
+            endpoints: {
+                interface: 'GET / (navegador)',
+                health: 'GET /health',
+                cotacoes: {
+                    listar: 'GET /api/cotacoes',
+                    criar: 'POST /api/cotacoes',
+                    buscar: 'GET /api/cotacoes/:id',
+                    atualizar: 'PUT /api/cotacoes/:id',
+                    deletar: 'DELETE /api/cotacoes/:id'
+                }
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 
 // ==========================================
