@@ -51,6 +51,7 @@ app.get('/', (req, res) => {
         authentication: 'Desativada',
         endpoints: {
             health: 'GET /health',
+            interface: 'GET /app',
             cotacoes: {
                 listar: 'GET /api/cotacoes',
                 criar: 'POST /api/cotacoes',
@@ -174,10 +175,12 @@ app.delete('/api/cotacoes/:id', async (req, res) => {
 // ==========================================
 // FRONTEND - SERVIR INTERFACE
 // ==========================================
-app.use(express.static(path.join(__dirname, 'público')));
+// CORREÇÃO: mudei de 'público' para 'public'
+app.use('/app', express.static(path.join(__dirname, 'public')));
 
-app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'público', 'index.html'));
+// Rota para servir a interface do usuário
+app.get('/app', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ==========================================
@@ -186,7 +189,8 @@ app.get(/^\/(?!api).*/, (req, res) => {
 app.use((req, res) => {
     res.status(404).json({
         error: 'Rota não encontrada',
-        message: `A rota ${req.method} ${req.path} não existe`
+        message: `A rota ${req.method} ${req.path} não existe`,
+        hint: 'Acesse /app para ver a interface do usuário'
     });
 });
 
@@ -200,5 +204,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Banco de dados: Supabase`);
     console.log(`🔗 URL: ${supabaseUrl}`);
     console.log(`🔓 Autenticação: DESATIVADA`);
+    console.log(`🌐 Interface: https://cotacoes-frete.onrender.com/app`);
     console.log('🚀 =================================');
 });
