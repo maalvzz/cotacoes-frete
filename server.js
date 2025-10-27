@@ -6,9 +6,29 @@ const path = require('path');
 
 const app = express();
 
-// ==========================================
-// CONFIGURAÇÃO DO SUPABASE
-// ==========================================
+const allowedIPs = ['187.36.172.217']; // Seu IP público
+
+app.use((req, res, next) => {
+  // Render envia o IP real no cabeçalho X-Forwarded-For
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  const clientIP = xForwardedFor
+    ? xForwardedFor.split(',')[0].trim()
+    : req.socket.remoteAddress;
+
+  const cleanIP = clientIP.replace('::ffff:', '');
+
+  console.log('IP tentando acessar:', cleanIP);
+
+  if (!allowedIPs.includes(cleanIP)) {
+    return res.status(403).json({
+      error: 'Acesso negado',
+      message: `Seu IP (${cleanIP}) não tem permissão para acessar este serviço`,
+    });
+  }
+
+  next();
+});
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
@@ -284,3 +304,4 @@ if (!fs.existsSync(publicPath)) {
     console.error('   - public/styles.css');
     console.error('   - public/script.js');
 }
+
