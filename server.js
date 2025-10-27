@@ -26,11 +26,28 @@ console.log('✅ Supabase configurado:', supabaseUrl);
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Internal-Auth']
 }));
 app.use(express.json());
 
-// Log de todas as requisições
+// ==========================================
+// 🔒 BLOQUEIO DE ACESSO DIRETO (SEGURANÇA)
+// ==========================================
+app.use((req, res, next) => {
+    const internalKey = req.headers['x-internal-auth'];
+    const validKey = process.env.INTERNAL_KEY;
+
+    if (!internalKey || internalKey !== validKey) {
+        console.warn(`🚫 Tentativa de acesso não autorizado de ${req.ip} → ${req.originalUrl}`);
+        return res.status(403).json({ error: 'Acesso não autorizado' });
+    }
+
+    next();
+});
+
+// ==========================================
+// LOG DE TODAS AS REQUISIÇÕES AUTORIZADAS
+// ==========================================
 app.use((req, res, next) => {
     console.log(`📥 ${req.method} ${req.path}`);
     next();
@@ -39,8 +56,6 @@ app.use((req, res, next) => {
 // ==========================================
 // ROTAS PÚBLICAS (API)
 // ==========================================
-
-// Rota raiz (documentação básica da API)
 app.get('/', (req, res) => {
     res.json({
         message: '🚀 API de Cotações de Frete',
@@ -48,7 +63,7 @@ app.get('/', (req, res) => {
         status: 'online',
         database: 'Supabase',
         cache: 'Desativado',
-        authentication: 'Desativada',
+        authentication: 'Protegida por INTERNAL_KEY',
         endpoints: {
             health: 'GET /health',
             cotacoes: {
@@ -85,7 +100,6 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// HEAD
 app.head('/api/cotacoes', (req, res) => res.status(200).end());
 
 // ==========================================
@@ -198,7 +212,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('🚀 =================================');
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
     console.log(`📊 Banco de dados: Supabase`);
-    console.log(`🔗 URL: ${supabaseUrl}`);
-    console.log(`🔓 Autenticação: DESATIVADA`);
+    console.log(`🔐 Proteção de acesso: ATIVADA`);
+    console.log(`🔑 INTERNAL_KEY configurada: ${!!process.env.INTERNAL_KEY}`);
     console.log('🚀 =================================');
 });
