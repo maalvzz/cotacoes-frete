@@ -13,7 +13,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_KEY não configurados no .env');
+    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_KEY não configurados');
     process.exit(1);
 }
 
@@ -26,99 +26,94 @@ console.log('✅ Supabase configurado:', supabaseUrl);
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Internal-Auth']
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ==========================================
-// 🔒 BLOQUEIO DE ACESSO DIRETO (SEGURANÇA)
-// ==========================================
+// Log detalhado de requisições
 app.use((req, res, next) => {
-    const internalKey = req.headers['x-internal-auth'];
-    const validKey = process.env.INTERNAL_KEY;
+    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
 
-    if (!internalKey || internalKey !== validKey) {
-        console.warn(`🚫 Tentativa de acesso não autorizado de ${req.ip} → ${req.originalUrl}`);
-        return res.status(403).json({ error: 'Acesso não autorizado' });
+// ==========================================
+// SERVIR ARQUIVOS ESTÁTICOS (FRONTEND)
+// ==========================================
+const publicPath = path.join(__dirname, 'public');
+console.log('📁 Pasta public:', publicPath);
+
+// Servir arquivos estáticos da pasta public
+app.use(express.static(publicPath, {
+    index: 'index.html', // ✅ CORRIGIDO: agora serve index.html na raiz
+    dotfiles: 'deny',
+    setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html');
+        } else if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
     }
-
-    next();
-});
+}));
 
 // ==========================================
-// LOG DE TODAS AS REQUISIÇÕES AUTORIZADAS
+// HEALTH CHECK
 // ==========================================
-app.use((req, res, next) => {
-    console.log(`📥 ${req.method} ${req.path}`);
-    next();
-});
-
-// ==========================================
-// ROTAS PÚBLICAS (API)
-// ==========================================
-app.get('/', (req, res) => {
-    res.json({
-        message: '🚀 API de Cotações de Frete',
-        version: '2.0.0',
-        status: 'online',
-        database: 'Supabase',
-        cache: 'Desativado',
-        authentication: 'Protegida por INTERNAL_KEY',
-        endpoints: {
-            health: 'GET /health',
-            cotacoes: {
-                listar: 'GET /api/cotacoes',
-                criar: 'POST /api/cotacoes',
-                buscar: 'GET /api/cotacoes/:id',
-                atualizar: 'PUT /api/cotacoes/:id',
-                deletar: 'DELETE /api/cotacoes/:id'
-            }
-        },
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Health check
 app.get('/health', async (req, res) => {
     try {
-        const { error } = await supabase.from('cotacoes').select('count', { count: 'exact', head: true });
+        const { error } = await supabase
+            .from('cotacoes')
+            .select('count', { count: 'exact', head: true });
+        
         res.json({
             status: error ? 'unhealthy' : 'healthy',
             database: error ? 'disconnected' : 'connected',
             supabase_url: supabaseUrl,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            publicPath: publicPath
         });
-        if (error) console.error('❌ Erro no health check Supabase:', error);
     } catch (error) {
-        console.error('❌ Erro no health check:', error);
         res.json({
             status: 'unhealthy',
-            database: 'error',
             error: error.message,
             timestamp: new Date().toISOString()
         });
     }
 });
 
-app.head('/api/cotacoes', (req, res) => res.status(200).end());
+// ==========================================
+// ROTAS DA API
+// ==========================================
 
-// ==========================================
-// ROTAS DE COTAÇÕES
-// ==========================================
+// Listar todas as cotações
 app.get('/api/cotacoes', async (req, res) => {
     try {
+        console.log('🔍 Buscando cotações...');
         const { data, error } = await supabase
             .from('cotacoes')
             .select('*')
             .order('timestamp', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Erro ao buscar:', error);
+            throw error;
+        }
+        
+        console.log(`✅ ${data.length} cotações encontradas`);
         res.json(data || []);
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao buscar cotações', details: error.message });
+        console.error('❌ Erro:', error);
+        res.status(500).json({ 
+            error: 'Erro ao buscar cotações', 
+            details: error.message 
+        });
     }
 });
 
+// Buscar cotação específica
 app.get('/api/cotacoes/:id', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -127,15 +122,24 @@ app.get('/api/cotacoes/:id', async (req, res) => {
             .eq('id', req.params.id)
             .single();
 
-        if (error) return res.status(404).json({ error: 'Cotação não encontrada' });
+        if (error) {
+            return res.status(404).json({ error: 'Cotação não encontrada' });
+        }
+        
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao buscar cotação', details: error.message });
+        res.status(500).json({ 
+            error: 'Erro ao buscar cotação', 
+            details: error.message 
+        });
     }
 });
 
+// Criar nova cotação
 app.post('/api/cotacoes', async (req, res) => {
     try {
+        console.log('📝 Criando cotação:', req.body);
+        
         const novaCotacao = {
             ...req.body,
             id: Date.now().toString(),
@@ -149,15 +153,27 @@ app.post('/api/cotacoes', async (req, res) => {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Erro ao criar:', error);
+            throw error;
+        }
+        
+        console.log('✅ Cotação criada:', data.id);
         res.status(201).json(data);
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao criar cotação', details: error.message });
+        console.error('❌ Erro:', error);
+        res.status(500).json({ 
+            error: 'Erro ao criar cotação', 
+            details: error.message 
+        });
     }
 });
 
+// Atualizar cotação
 app.put('/api/cotacoes/:id', async (req, res) => {
     try {
+        console.log('✏️ Atualizando cotação:', req.params.id);
+        
         const { data, error } = await supabase
             .from('cotacoes')
             .update({
@@ -168,39 +184,78 @@ app.put('/api/cotacoes/:id', async (req, res) => {
             .select()
             .single();
 
-        if (error) return res.status(404).json({ error: 'Cotação não encontrada' });
+        if (error) {
+            return res.status(404).json({ error: 'Cotação não encontrada' });
+        }
+        
+        console.log('✅ Cotação atualizada');
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao atualizar cotação', details: error.message });
+        console.error('❌ Erro:', error);
+        res.status(500).json({ 
+            error: 'Erro ao atualizar cotação', 
+            details: error.message 
+        });
     }
 });
 
+// Deletar cotação
 app.delete('/api/cotacoes/:id', async (req, res) => {
     try {
-        const { error } = await supabase.from('cotacoes').delete().eq('id', req.params.id);
+        console.log('🗑️ Deletando cotação:', req.params.id);
+        
+        const { error } = await supabase
+            .from('cotacoes')
+            .delete()
+            .eq('id', req.params.id);
+
         if (error) throw error;
+        
+        console.log('✅ Cotação deletada');
         res.status(204).end();
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao excluir cotação', details: error.message });
+        console.error('❌ Erro:', error);
+        res.status(500).json({ 
+            error: 'Erro ao excluir cotação', 
+            details: error.message 
+        });
     }
 });
 
 // ==========================================
-// FRONTEND - SERVIR INTERFACE
+// ROTA PRINCIPAL - SERVIR INTERFACE HTML
 // ==========================================
-app.use(express.static(path.join(__dirname, 'público')));
+// Removido - agora é servido automaticamente pelo express.static
 
-app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'público', 'index.html'));
+// Rota alternativa /app
+app.get('/app', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // ==========================================
-// TRATAMENTO DE ROTAS NÃO ENCONTRADAS
+// ROTA 404
 // ==========================================
 app.use((req, res) => {
+    console.log('❌ Rota não encontrada:', req.path);
     res.status(404).json({
-        error: 'Rota não encontrada',
-        message: `A rota ${req.method} ${req.path} não existe`
+        error: '404 - Rota não encontrada',
+        path: req.path,
+        availableRoutes: {
+            interface: 'GET /',
+            health: 'GET /health',
+            api: 'GET /api/cotacoes'
+        }
+    });
+});
+
+// ==========================================
+// TRATAMENTO DE ERROS
+// ==========================================
+app.use((error, req, res, next) => {
+    console.error('💥 Erro no servidor:', error);
+    res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error.message
     });
 });
 
@@ -208,11 +263,24 @@ app.use((req, res) => {
 // INICIAR SERVIDOR
 // ==========================================
 const PORT = process.env.PORT || 3001;
+
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('🚀 =================================');
+    console.log('\n🚀 ================================');
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`📊 Banco de dados: Supabase`);
-    console.log(`🔐 Proteção de acesso: ATIVADA`);
-    console.log(`🔑 INTERNAL_KEY configurada: ${!!process.env.INTERNAL_KEY}`);
-    console.log('🚀 =================================');
+    console.log(`📊 Database: Supabase`);
+    console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+    console.log(`📁 Public folder: ${publicPath}`);
+    console.log(`🌐 Interface: http://localhost:${PORT}`);
+    console.log(`🔧 API: http://localhost:${PORT}/api/cotacoes`);
+    console.log('🚀 ================================\n');
 });
+
+// Verificar se pasta public existe
+const fs = require('fs');
+if (!fs.existsSync(publicPath)) {
+    console.error('⚠️ AVISO: Pasta public/ não encontrada!');
+    console.error('📁 Crie a pasta e adicione os arquivos:');
+    console.error('   - public/index.html');
+    console.error('   - public/styles.css');
+    console.error('   - public/script.js');
+}
