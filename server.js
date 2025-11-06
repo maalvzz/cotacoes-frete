@@ -5,30 +5,11 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 
-const allowedIPs = ['187.36.172.217']; // Seu IP público
-
-app.use((req, res, next) => {
-  // Render envia o IP real no cabeçalho X-Forwarded-For
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  const clientIP = xForwardedFor
-    ? xForwardedFor.split(',')[0].trim()
-    : req.socket.remoteAddress;
-
-  const cleanIP = clientIP.replace('::ffff:', '');
-
-  console.log('IP tentando acessar:', cleanIP);
-
-  if (!allowedIPs.includes(cleanIP)) {
-    return res.status(403).json({
-      error: 'Acesso negado',
-      message: `Seu IP (${cleanIP}) não tem permissão para acessar este serviço`,
-    });
-  }
-
-  next();
-});
-
+// ==========================================
+// ======== CONFIGURAÇÃO DO SUPABASE ========
+// ==========================================
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
@@ -41,12 +22,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 console.log('✅ Supabase configurado:', supabaseUrl);
 
 // ==========================================
-// MIDDLEWARES
+// ======== MIDDLEWARES =====================
 // ==========================================
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
 }));
 
 app.use(express.json());
@@ -59,14 +40,75 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// SERVIR ARQUIVOS ESTÁTICOS (FRONTEND)
+// ======== MIDDLEWARE DE AUTENTICAÇÃO ======
+// ==========================================
+const PORTAL_URL = process.env.PORTAL_URL || 'https://portal-central-ircomercio.onrender.com';
+
+async function verificarAutenticacao(req, res, next) {
+    // Permitir acesso livre à página inicial e health check
+    if (req.path === '/' || req.path === '/health' || req.path === '/app') {
+        return next();
+    }
+
+    // Pegar token da sessão
+    const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
+
+    if (!sessionToken) {
+        return res.status(401).json({
+            error: 'Não autenticado',
+            message: 'Token de sessão não encontrado',
+            redirectToLogin: true
+        });
+    }
+
+    try {
+        // Verificar se a sessão é válida no Portal Central
+        const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+        });
+
+        if (!verifyResponse.ok) {
+            return res.status(401).json({
+                error: 'Sessão inválida',
+                message: 'Sua sessão expirou ou foi invalidada',
+                redirectToLogin: true
+            });
+        }
+
+        const sessionData = await verifyResponse.json();
+
+        if (!sessionData.valid) {
+            return res.status(401).json({
+                error: 'Sessão inválida',
+                message: sessionData.message || 'Sua sessão expirou',
+                redirectToLogin: true
+            });
+        }
+
+        // Adicionar informações do usuário na requisição
+        req.user = sessionData.session;
+        req.sessionToken = sessionToken;
+
+        next();
+    } catch (error) {
+        console.error('❌ Erro ao verificar autenticação:', error);
+        return res.status(500).json({
+            error: 'Erro interno',
+            message: 'Erro ao verificar autenticação'
+        });
+    }
+}
+
+// ==========================================
+// ======== SERVIR ARQUIVOS ESTÁTICOS =======
 // ==========================================
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Pasta public:', publicPath);
 
-// Servir arquivos estáticos da pasta public
 app.use(express.static(publicPath, {
-    index: 'index.html', // ✅ CORRIGIDO: agora serve index.html na raiz
+    index: 'index.html',
     dotfiles: 'deny',
     setHeaders: (res, path) => {
         if (path.endsWith('.html')) {
@@ -80,7 +122,7 @@ app.use(express.static(publicPath, {
 }));
 
 // ==========================================
-// HEALTH CHECK
+// ======== HEALTH CHECK ====================
 // ==========================================
 app.get('/health', async (req, res) => {
     try {
@@ -93,7 +135,8 @@ app.get('/health', async (req, res) => {
             database: error ? 'disconnected' : 'connected',
             supabase_url: supabaseUrl,
             timestamp: new Date().toISOString(),
-            publicPath: publicPath
+            publicPath: publicPath,
+            authentication: 'enabled'
         });
     } catch (error) {
         res.json({
@@ -105,8 +148,11 @@ app.get('/health', async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DA API
+// ======== ROTAS DA API ====================
 // ==========================================
+
+// Aplicar autenticação em todas as rotas da API
+app.use('/api', verificarAutenticacao);
 
 // Listar todas as cotações
 app.get('/api/cotacoes', async (req, res) => {
@@ -243,17 +289,18 @@ app.delete('/api/cotacoes/:id', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PRINCIPAL - SERVIR INTERFACE HTML
+// ======== ROTA PRINCIPAL ==================
 // ==========================================
-// Removido - agora é servido automaticamente pelo express.static
+app.get('/', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
 
-// Rota alternativa /app
 app.get('/app', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // ==========================================
-// ROTA 404
+// ======== ROTA 404 ========================
 // ==========================================
 app.use((req, res) => {
     console.log('❌ Rota não encontrada:', req.path);
@@ -269,7 +316,7 @@ app.use((req, res) => {
 });
 
 // ==========================================
-// TRATAMENTO DE ERROS
+// ======== TRATAMENTO DE ERROS =============
 // ==========================================
 app.use((error, req, res, next) => {
     console.error('💥 Erro no servidor:', error);
@@ -280,18 +327,17 @@ app.use((error, req, res, next) => {
 });
 
 // ==========================================
-// INICIAR SERVIDOR
+// ======== INICIAR SERVIDOR ================
 // ==========================================
-const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 ================================');
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
     console.log(`📊 Database: Supabase`);
     console.log(`🔗 Supabase URL: ${supabaseUrl}`);
     console.log(`📁 Public folder: ${publicPath}`);
-    console.log(`🌐 Interface: http://localhost:${PORT}`);
-    console.log(`🔧 API: http://localhost:${PORT}/api/cotacoes`);
+    console.log(`🔐 Autenticação: Ativa ✅`);
+    console.log(`🔓 Filtro de IP: Removido ✅`);
+    console.log(`🌐 Portal URL: ${PORTAL_URL}`);
     console.log('🚀 ================================\n');
 });
 
@@ -304,4 +350,3 @@ if (!fs.existsSync(publicPath)) {
     console.error('   - public/styles.css');
     console.error('   - public/script.js');
 }
-
