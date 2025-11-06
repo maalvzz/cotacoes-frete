@@ -1,5 +1,7 @@
-// CORREÇÃO: adicionei /api/cotacoes no final da URL
+// ✅ Altere para a URL real do seu Portal Central
+const PORTAL_URL = 'https://portal-central-ircomercio.onrender.com';
 const API_URL = 'https://cotacoes-frete.onrender.com/api/cotacoes';
+
 const STORAGE_KEY = 'cotacoes_frete';
 const POLLING_INTERVAL = 10000;
 
@@ -9,18 +11,131 @@ let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let isSubmitting = false;
 let lastSyncTime = null;
+let sessionToken = null;
+let sessionCheckInterval = null;
 
 const meses = [
-    'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+    verificarAutenticacao();
+});
+
+// ==========================================
+// ======== VERIFICAR AUTENTICAÇÃO ==========
+// ==========================================
+function verificarAutenticacao() {
+    // Pegar token da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('sessionToken');
+
+    if (tokenFromUrl) {
+        sessionToken = tokenFromUrl;
+        sessionStorage.setItem('cotacoesFreteSession', sessionToken);
+        // Limpar URL sem recarregar a página
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+        sessionToken = sessionStorage.getItem('cotacoesFreteSession');
+    }
+
+    if (!sessionToken) {
+        mostrarTelaAcessoNegado();
+        return;
+    }
+
+    // Verificar se a sessão é válida
+    verificarSessaoValida();
+}
+
+async function verificarSessaoValida() {
+    try {
+        const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+        });
+
+        const data = await response.json();
+
+        if (!data.valid) {
+            sessionStorage.removeItem('cotacoesFreteSession');
+            mostrarTelaAcessoNegado(data.message);
+            return;
+        }
+
+        // Sessão válida - carregar aplicação
+        iniciarAplicacao();
+    } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+        mostrarTelaAcessoNegado('Erro ao verificar autenticação');
+    }
+}
+
+function iniciarAplicacao() {
     setTodayDate();
     loadCotacoes();
     updateMonthDisplay();
     startRealtimeSync();
-});
+    startSessionCheck();
+}
+
+// ==========================================
+// ======== VERIFICAÇÃO PERIÓDICA DE SESSÃO =
+// ==========================================
+function startSessionCheck() {
+    if (sessionCheckInterval) {
+        clearInterval(sessionCheckInterval);
+    }
+
+    // Verificar a cada 30 segundos
+    sessionCheckInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionToken })
+            });
+
+            const data = await response.json();
+
+            if (!data.valid) {
+                clearInterval(sessionCheckInterval);
+                sessionStorage.removeItem('cotacoesFreteSession');
+                mostrarTelaAcessoNegado('Sua sessão expirou');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar sessão:', error);
+        }
+    }, 30000);
+}
+
+// ==========================================
+// ======== TELA DE ACESSO NEGADO ===========
+// ==========================================
+function mostrarTelaAcessoNegado(mensagem = 'Acesso não autorizado') {
+    document.body.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 100%); font-family: 'Inter', sans-serif;">
+            <div style="text-align: center; padding: 3rem; background: white; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); max-width: 500px;">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
+                <h1 style="font-size: 1.8rem; color: #1E1E1E; margin-bottom: 1rem;">Acesso Restrito</h1>
+                <p style="color: #666; margin-bottom: 2rem; line-height: 1.6;">${mensagem}</p>
+                <button onclick="voltarParaLogin()" style="padding: 1rem 2rem; background: linear-gradient(135deg, #ff5100 0%, #E67E00 100%); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(255, 140, 0, 0.4);">
+                    Ir para o Login
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function voltarParaLogin() {
+    window.location.href = PORTAL_URL;
+}
+
+// ==========================================
+// ======== FUNÇÕES DA APLICAÇÃO ============
+// ==========================================
 
 function updateMonthDisplay() {
     document.getElementById('currentMonth').textContent = `${meses[currentMonth]} ${currentYear}`;
@@ -52,8 +167,17 @@ async function checkForUpdates() {
         const response = await fetch(API_URL, {
             method: 'GET',
             cache: 'no-cache',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            }
         });
+
+        if (response.status === 401) {
+            sessionStorage.removeItem('cotacoesFreteSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
+            return;
+        }
         
         if (!response.ok) return;
 
@@ -67,7 +191,7 @@ async function checkForUpdates() {
             lastSyncTime = new Date();
         }
     } catch (error) {
-        console.error('Erro ao verificar atualizacoes:', error);
+        console.error('Erro ao verificar atualizações:', error);
     }
 }
 
@@ -92,7 +216,7 @@ function hasDataChanged(newData) {
 function showRealtimeUpdate() {
     const notification = document.createElement('div');
     notification.className = 'realtime-notification';
-    notification.innerHTML = 'Dados atualizados';
+    notification.innerHTML = '✓ Dados atualizados';
     document.body.appendChild(notification);
 
     setTimeout(() => notification.classList.add('show'), 100);
@@ -104,7 +228,6 @@ function showRealtimeUpdate() {
 
 async function checkServerStatus() {
     try {
-        // CORREÇÃO: URL do health check correta
         const response = await fetch('https://cotacoes-frete.onrender.com/health', { 
             method: 'GET',
             cache: 'no-cache'
@@ -161,8 +284,19 @@ async function loadCotacoes() {
     const serverOnline = await checkServerStatus();
     try {
         if (serverOnline) {
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('Erro ao carregar cotacoes');
+            const response = await fetch(API_URL, {
+                headers: {
+                    'X-Session-Token': sessionToken
+                }
+            });
+
+            if (response.status === 401) {
+                sessionStorage.removeItem('cotacoesFreteSession');
+                mostrarTelaAcessoNegado('Sua sessão expirou');
+                return;
+            }
+
+            if (!response.ok) throw new Error('Erro ao carregar cotações');
             cotacoes = await response.json();
             saveToLocalStorage(cotacoes);
             lastSyncTime = new Date();
@@ -208,7 +342,7 @@ async function handleSubmit(event) {
         
         saveToLocalStorage(cotacoes);
         filterCotacoes();
-        showMessage(editId ? 'Cotacao atualizada!' : 'Cotacao registrada!', 'success');
+        showMessage(editId ? 'Cotação atualizada!' : 'Cotação registrada!', 'success');
         resetForm();
         
         const serverOnline = await checkServerStatus();
@@ -218,15 +352,27 @@ async function handleSubmit(event) {
                 if (editId) {
                     response = await fetch(`${API_URL}/${editId}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-Session-Token': sessionToken
+                        },
                         body: JSON.stringify(formData)
                     });
                 } else {
                     response = await fetch(API_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-Session-Token': sessionToken
+                        },
                         body: JSON.stringify(formData)
                     });
+                }
+
+                if (response.status === 401) {
+                    sessionStorage.removeItem('cotacoesFreteSession');
+                    mostrarTelaAcessoNegado('Sua sessão expirou');
+                    return;
                 }
 
                 if (response.ok) {
@@ -248,11 +394,11 @@ async function handleSubmit(event) {
         }
     } catch (error) {
         console.error('Erro:', error);
-        showMessage('Erro ao processar cotacao', 'error');
+        showMessage('Erro ao processar cotação', 'error');
     } finally {
         isSubmitting = false;
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span id="submitIcon">✓</span> <span id="submitText">Registrar Cotacao</span>';
+        submitBtn.innerHTML = '<span id="submitIcon">✓</span> <span id="submitText">Registrar Cotação</span>';
     }
 }
 
@@ -275,8 +421,8 @@ function editCotacao(id) {
     document.getElementById('dataCotacao').value = cotacao.dataCotacao;
     document.getElementById('observacoes').value = cotacao.observacoes || '';
 
-    document.getElementById('formTitle').textContent = 'Editar Cotacao';
-    document.getElementById('submitText').textContent = 'Atualizar Cotacao';
+    document.getElementById('formTitle').textContent = 'Editar Cotação';
+    document.getElementById('submitText').textContent = 'Atualizar Cotação';
     document.getElementById('cancelBtn').classList.remove('hidden');
     document.getElementById('formCard').classList.remove('hidden');
     
@@ -284,18 +430,30 @@ function editCotacao(id) {
 }
 
 async function deleteCotacao(id) {
-    if (!confirm('Tem certeza que deseja excluir esta cotacao?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta cotação?')) return;
     
     const cotacaoBackup = cotacoes.find(c => c.id === id);
     cotacoes = cotacoes.filter(c => c.id !== id);
     saveToLocalStorage(cotacoes);
     filterCotacoes();
-    showMessage('Cotacao excluida!', 'success');
+    showMessage('Cotação excluída!', 'success');
 
     const serverOnline = await checkServerStatus();
     if (serverOnline) {
         try {
-            const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            const response = await fetch(`${API_URL}/${id}`, { 
+                method: 'DELETE',
+                headers: {
+                    'X-Session-Token': sessionToken
+                }
+            });
+
+            if (response.status === 401) {
+                sessionStorage.removeItem('cotacoesFreteSession');
+                mostrarTelaAcessoNegado('Sua sessão expirou');
+                return;
+            }
+
             if (!response.ok) throw new Error('Erro ao excluir');
         } catch (error) {
             console.error('Erro:', error);
@@ -318,16 +476,26 @@ async function toggleNegocio(id) {
     cotacao.negocioFechado = !cotacao.negocioFechado;
     saveToLocalStorage(cotacoes);
     filterCotacoes();
-    showMessage(cotacao.negocioFechado ? 'Negocio fechado!' : 'Marcacao removida!', 'success');
+    showMessage(cotacao.negocioFechado ? 'Negócio fechado!' : 'Marcação removida!', 'success');
 
     const serverOnline = await checkServerStatus();
     if (serverOnline) {
         try {
             const response = await fetch(`${API_URL}/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': sessionToken
+                },
                 body: JSON.stringify(cotacao)
             });
+
+            if (response.status === 401) {
+                sessionStorage.removeItem('cotacoesFreteSession');
+                mostrarTelaAcessoNegado('Sua sessão expirou');
+                return;
+            }
+
             if (!response.ok) throw new Error('Erro');
         } catch (error) {
             cotacao.negocioFechado = estadoAnterior;
@@ -343,14 +511,14 @@ function getFormData() {
         responsavelCotacao: document.getElementById('responsavelCotacao').value,
         transportadora: document.getElementById('transportadora').value,
         destino: document.getElementById('destino').value,
-        numeroCotacao: document.getElementById('numeroCotacao').value || 'Nao Informado',
+        numeroCotacao: document.getElementById('numeroCotacao').value || 'Não Informado',
         valorFrete: parseFloat(document.getElementById('valorFrete').value),
-        vendedor: document.getElementById('vendedor').value || 'Nao Informado',
-        numeroDocumento: document.getElementById('numeroDocumento').value || 'Nao Informado',
-        previsaoEntrega: document.getElementById('previsaoEntrega').value || 'Nao Informado',
-        canalComunicacao: document.getElementById('canalComunicacao').value || 'Nao Informado',
-        codigoColeta: document.getElementById('codigoColeta').value || 'Nao Informado',
-        responsavelTransportadora: document.getElementById('responsavelTransportadora').value || 'Nao Informado',
+        vendedor: document.getElementById('vendedor').value || 'Não Informado',
+        numeroDocumento: document.getElementById('numeroDocumento').value || 'Não Informado',
+        previsaoEntrega: document.getElementById('previsaoEntrega').value || 'Não Informado',
+        canalComunicacao: document.getElementById('canalComunicacao').value || 'Não Informado',
+        codigoColeta: document.getElementById('codigoColeta').value || 'Não Informado',
+        responsavelTransportadora: document.getElementById('responsavelTransportadora').value || 'Não Informado',
         dataCotacao: document.getElementById('dataCotacao').value,
         observacoes: document.getElementById('observacoes').value || '',
         negocioFechado: false
@@ -360,9 +528,9 @@ function getFormData() {
 function resetForm() {
     document.getElementById('cotacaoForm').reset();
     document.getElementById('editId').value = '';
-    document.getElementById('formTitle').textContent = 'Nova Cotacao';
+    document.getElementById('formTitle').textContent = 'Nova Cotação';
     document.getElementById('submitIcon').textContent = '✓';
-    document.getElementById('submitText').textContent = 'Registrar Cotacao';
+    document.getElementById('submitText').textContent = 'Registrar Cotação';
     document.getElementById('cancelBtn').classList.add('hidden');
     setTodayDate();
 }
@@ -373,7 +541,7 @@ function toggleForm() {
     const formCard = document.getElementById('formCard');
     const button = event.currentTarget;
     formCard.classList.toggle('hidden');
-    button.textContent = formCard.classList.contains('hidden') ? 'Nova Cotacao' : 'Ocultar Formulario';
+    button.textContent = formCard.classList.contains('hidden') ? 'Nova Cotação' : 'Ocultar Formulário';
     if (!formCard.classList.contains('hidden')) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -413,7 +581,7 @@ function filterCotacoes() {
 function renderCotacoes(filtered) {
     const container = document.getElementById('cotacoesContainer');
     if (filtered.length === 0) {
-        container.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--text-secondary);">Nenhuma cotacao encontrada para ${meses[currentMonth]} de ${currentYear}.</p>`;
+        container.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--text-secondary);">Nenhuma cotação encontrada para ${meses[currentMonth]} de ${currentYear}.</p>`;
         return;
     }
 
@@ -422,9 +590,9 @@ function renderCotacoes(filtered) {
         <table>
             <thead>
                 <tr>
-                    <th>Status</th><th>Resp.</th><th>Transportadora</th><th>Destino</th><th>Nº Cotacao</th>
-                    <th>Valor</th><th>Vendedor</th><th>Documento</th><th>Previsao</th>
-                    <th>Codigo Coleta</th><th>Data</th><th>Acoes</th>
+                    <th>Status</th><th>Resp.</th><th>Transportadora</th><th>Destino</th><th>Nº Cotação</th>
+                    <th>Valor</th><th>Vendedor</th><th>Documento</th><th>Previsão</th>
+                    <th>Código Coleta</th><th>Data</th><th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -432,7 +600,7 @@ function renderCotacoes(filtered) {
                     <tr class="${c.negocioFechado ? 'negocio-fechado' : ''}">
                         <td><button class="small ${c.negocioFechado ? 'success' : 'secondary'}" onclick="toggleNegocio('${c.id}')">✓</button></td>
                         <td><span class="badge ${c.negocioFechado ? 'fechado' : ''}">${c.responsavelCotacao}</span></td>
-                        <td>${c.transportadora}</td><td>${c.destino || 'Nao Informado'}</td>
+                        <td>${c.transportadora}</td><td>${c.destino || 'Não Informado'}</td>
                         <td>${c.numeroCotacao}</td><td class="valor">R$ ${c.valorFrete.toFixed(2)}</td>
                         <td>${c.vendedor}</td><td>${c.numeroDocumento}</td>
                         <td>${c.previsaoEntrega}</td><td>${c.codigoColeta}</td>
