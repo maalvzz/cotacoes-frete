@@ -195,15 +195,15 @@ async function checkForUpdates() {
 function hasDataChanged(newData) {
     if (cotacoes.length !== newData.length) return true;
 
-    const currentIds = new Set(cotacoes.map(c => c.id));
-    const newIds = new Set(newData.map(c => c.id));
+    const currentIds = new Set(cotacoes.map(c => String(c.id)));
+    const newIds = new Set(newData.map(c => String(c.id)));
 
     if (currentIds.size !== newIds.size) return true;
 
     for (let id of newIds) if (!currentIds.has(id)) return true;
 
     for (let newItem of newData) {
-        const oldItem = cotacoes.find(c => c.id === newItem.id);
+        const oldItem = cotacoes.find(c => String(c.id) === String(newItem.id));
         if (oldItem && JSON.stringify(oldItem) !== JSON.stringify(newItem)) return true;
     }
 
@@ -307,6 +307,7 @@ async function loadCotacoes() {
             
             cotacoes = await response.json();
             console.log('✅ Cotações carregadas:', cotacoes.length, 'registros');
+            console.log('📋 IDs das cotações:', cotacoes.map(c => ({ id: c.id, tipo: typeof c.id })));
             saveToLocalStorage(cotacoes);
             lastSyncTime = new Date();
         } else {
@@ -341,7 +342,8 @@ async function handleSubmit(event) {
         let novaCotacao = null;
         
         if (editId) {
-            const index = cotacoes.findIndex(c => c.id === editId);
+            // CORREÇÃO: Normalizar ID para comparação
+            const index = cotacoes.findIndex(c => String(c.id) === String(editId));
             if (index !== -1) {
                 cotacoes[index] = { ...formData, id: editId, timestamp: cotacoes[index].timestamp };
             }
@@ -390,7 +392,7 @@ async function handleSubmit(event) {
                     const savedData = await response.json();
                     
                     if (tempId) {
-                        const index = cotacoes.findIndex(c => c.id === tempId);
+                        const index = cotacoes.findIndex(c => String(c.id) === String(tempId));
                         if (index !== -1) {
                             cotacoes[index] = savedData;
                             saveToLocalStorage(cotacoes);
@@ -418,13 +420,15 @@ async function handleSubmit(event) {
 // ==========================================
 
 window.editCotacao = function(id) {
-    console.log('🔧 editCotacao chamada com ID:', id);
+    console.log('🔧 editCotacao chamada com ID:', id, 'Tipo:', typeof id);
     
     try {
-        const cotacao = cotacoes.find(c => c.id === id);
+        // CORREÇÃO PRINCIPAL: Normalizar ID para string na comparação
+        const cotacao = cotacoes.find(c => String(c.id) === String(id));
         
         if (!cotacao) {
             console.error('❌ Cotação não encontrada com ID:', id);
+            console.log('📋 IDs disponíveis:', cotacoes.map(c => ({ id: c.id, tipo: typeof c.id })));
             showMessage('Cotação não encontrada', 'error');
             return;
         }
@@ -461,8 +465,8 @@ window.editCotacao = function(id) {
             return;
         }
 
-        // Preencher o formulário
-        elementos.editId.value = id;
+        // Preencher o formulário - SEMPRE converter ID para string
+        elementos.editId.value = String(id);
         elementos.responsavelCotacao.value = cotacao.responsavelCotacao;
         elementos.transportadora.value = cotacao.transportadora;
         elementos.destino.value = cotacao.destino || '';
@@ -494,15 +498,16 @@ window.editCotacao = function(id) {
 };
 
 window.deleteCotacao = async function(id) {
-    console.log('🗑️ deleteCotacao chamada com ID:', id);
+    console.log('🗑️ deleteCotacao chamada com ID:', id, 'Tipo:', typeof id);
     
     if (!confirm('Tem certeza que deseja excluir esta cotação?')) {
         console.log('❌ Exclusão cancelada pelo usuário');
         return;
     }
     
-    const cotacaoBackup = cotacoes.find(c => c.id === id);
-    cotacoes = cotacoes.filter(c => c.id !== id);
+    // CORREÇÃO: Normalizar ID para comparação
+    const cotacaoBackup = cotacoes.find(c => String(c.id) === String(id));
+    cotacoes = cotacoes.filter(c => String(c.id) !== String(id));
     saveToLocalStorage(cotacoes);
     filterCotacoes();
     showMessage('Cotação excluída!', 'success');
@@ -542,9 +547,10 @@ window.deleteCotacao = async function(id) {
 };
 
 window.toggleNegocio = async function(id) {
-    console.log('🔄 toggleNegocio chamada com ID:', id);
+    console.log('🔄 toggleNegocio chamada com ID:', id, 'Tipo:', typeof id);
     
-    const cotacao = cotacoes.find(c => c.id === id);
+    // CORREÇÃO: Normalizar ID para comparação
+    const cotacao = cotacoes.find(c => String(c.id) === String(id));
     if (!cotacao) {
         console.error('❌ Cotação não encontrada');
         return;
@@ -671,6 +677,8 @@ function renderCotacoes(filtered) {
     }
 
     filtered.sort((a, b) => new Date(b.timestamp || b.dataCotacao) - new Date(a.timestamp || a.dataCotacao));
+    
+    // CORREÇÃO: Garantir que ID seja sempre string no onclick
     const tableHTML = `
         <table>
             <thead>
@@ -683,7 +691,7 @@ function renderCotacoes(filtered) {
             <tbody>
                 ${filtered.map(c => `
                     <tr class="${c.negocioFechado ? 'negocio-fechado' : ''}">
-                        <td><button class="small ${c.negocioFechado ? 'success' : 'secondary'}" onclick="window.toggleNegocio('${c.id}')">✓</button></td>
+                        <td><button class="small ${c.negocioFechado ? 'success' : 'secondary'}" onclick="window.toggleNegocio('${String(c.id)}')">✓</button></td>
                         <td><span class="badge ${c.negocioFechado ? 'fechado' : ''}">${c.responsavelCotacao}</span></td>
                         <td>${c.transportadora}</td><td>${c.destino || 'Não Informado'}</td>
                         <td>${c.numeroCotacao}</td><td class="valor">R$ ${c.valorFrete.toFixed(2)}</td>
@@ -691,8 +699,8 @@ function renderCotacoes(filtered) {
                         <td>${c.previsaoEntrega}</td><td>${c.codigoColeta}</td>
                         <td>${formatDate(c.dataCotacao)}</td>
                         <td class="actions">
-                            <button class="small secondary" onclick="window.editCotacao('${c.id}')">Editar</button>
-                            <button class="small danger" onclick="window.deleteCotacao('${c.id}')">Excluir</button>
+                            <button class="small secondary" onclick="window.editCotacao('${String(c.id)}')">Editar</button>
+                            <button class="small danger" onclick="window.deleteCotacao('${String(c.id)}')">Excluir</button>
                         </td>
                     </tr>
                 `).join('')}
