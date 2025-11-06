@@ -1,5 +1,5 @@
 // ✅ Altere para a URL real do seu Portal Central
-const PORTAL_URL = 'https://portal-central-ircomercio.onrender.com';
+const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
 const API_URL = 'https://cotacoes-frete.onrender.com/api/cotacoes';
 
 const STORAGE_KEY = 'cotacoes_frete';
