@@ -1,4 +1,6 @@
-// ✅ Altere para a URL real do seu Portal Central
+// ==========================================
+// ======== CONFIGURAÇÃO ====================
+// ==========================================
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
 const API_URL = 'https://cotacoes-frete-aikc.onrender.com/api/cotacoes';
 
@@ -27,14 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ======== VERIFICAR AUTENTICAÇÃO ==========
 // ==========================================
 function verificarAutenticacao() {
-    // Pegar token da URL
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('sessionToken');
 
     if (tokenFromUrl) {
         sessionToken = tokenFromUrl;
         sessionStorage.setItem('cotacoesFreteSession', sessionToken);
-        // Limpar URL sem recarregar a página
         window.history.replaceState({}, document.title, window.location.pathname);
     } else {
         sessionToken = sessionStorage.getItem('cotacoesFreteSession');
@@ -45,7 +45,6 @@ function verificarAutenticacao() {
         return;
     }
 
-    // Verificar se a sessão é válida
     verificarSessaoValida();
 }
 
@@ -65,7 +64,6 @@ async function verificarSessaoValida() {
             return;
         }
 
-        // Sessão válida - carregar aplicação
         iniciarAplicacao();
     } catch (error) {
         console.error('Erro ao verificar sessão:', error);
@@ -89,7 +87,6 @@ function startSessionCheck() {
         clearInterval(sessionCheckInterval);
     }
 
-    // Verificar a cada 30 segundos
     sessionCheckInterval = setInterval(async () => {
         try {
             const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
@@ -228,14 +225,17 @@ function showRealtimeUpdate() {
 
 async function checkServerStatus() {
     try {
-        const response = await fetch('https://cotacoes-frete.onrender.com/health', { 
+        // CORREÇÃO: Usar a URL correta do health check
+        const response = await fetch('https://cotacoes-frete-aikc.onrender.com/health', { 
             method: 'GET',
             cache: 'no-cache'
         });
         isOnline = response.ok;
+        console.log('Status do servidor:', isOnline ? 'ONLINE' : 'OFFLINE');
         updateConnectionStatus();
         return isOnline;
     } catch (error) {
+        console.error('Erro ao verificar status:', error);
         isOnline = false;
         updateConnectionStatus();
         return false;
@@ -281,14 +281,19 @@ function setTodayDate() {
 }
 
 async function loadCotacoes() {
+    console.log('🔄 Carregando cotações...');
     const serverOnline = await checkServerStatus();
+    console.log('📡 Servidor online:', serverOnline);
+    
     try {
         if (serverOnline) {
+            console.log('🌐 Fazendo requisição para:', API_URL);
             const response = await fetch(API_URL, {
                 headers: {
                     'X-Session-Token': sessionToken
                 }
             });
+            console.log('📊 Response status:', response.status);
 
             if (response.status === 401) {
                 sessionStorage.removeItem('cotacoesFreteSession');
@@ -297,15 +302,19 @@ async function loadCotacoes() {
             }
 
             if (!response.ok) throw new Error('Erro ao carregar cotações');
+            
             cotacoes = await response.json();
+            console.log('✅ Cotações carregadas:', cotacoes.length, 'registros');
             saveToLocalStorage(cotacoes);
             lastSyncTime = new Date();
         } else {
+            console.log('⚠️ Carregando do localStorage...');
             cotacoes = loadFromLocalStorage();
+            console.log('📦 Cotações do cache:', cotacoes.length, 'registros');
         }
         filterCotacoes();
     } catch (error) {
-        console.error('Erro:', error);
+        console.error('❌ Erro:', error);
         cotacoes = loadFromLocalStorage();
         filterCotacoes();
         showMessage('Modo offline ativo', 'info');
