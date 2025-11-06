@@ -42,18 +42,26 @@ app.use((req, res, next) => {
 // ==========================================
 // ======== MIDDLEWARE DE AUTENTICAÇÃO ======
 // ==========================================
-const PORTAL_URL = process.env.PORTAL_URL || 'https://portal-central-ircomercio.onrender.com';
+
+// ⚠️ CORREÇÃO: URL correta do portal
+const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
+
+console.log('🔐 Portal URL configurado:', PORTAL_URL);
 
 async function verificarAutenticacao(req, res, next) {
-    // Permitir acesso livre à página inicial e health check
-    if (req.path === '/' || req.path === '/health' || req.path === '/app') {
+    // Rotas públicas que NÃO precisam de autenticação
+    const publicPaths = ['/', '/health', '/app'];
+    if (publicPaths.includes(req.path)) {
         return next();
     }
 
     // Pegar token da sessão
     const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
 
+    console.log('🔑 Token recebido:', sessionToken ? `${sessionToken.substring(0, 20)}...` : 'NENHUM');
+
     if (!sessionToken) {
+        console.log('❌ Token não encontrado');
         return res.status(401).json({
             error: 'Não autenticado',
             message: 'Token de sessão não encontrado',
@@ -62,6 +70,8 @@ async function verificarAutenticacao(req, res, next) {
     }
 
     try {
+        console.log('🔍 Verificando sessão no portal:', PORTAL_URL);
+        
         // Verificar se a sessão é válida no Portal Central
         const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
             method: 'POST',
@@ -69,7 +79,10 @@ async function verificarAutenticacao(req, res, next) {
             body: JSON.stringify({ sessionToken })
         });
 
+        console.log('📊 Resposta do portal:', verifyResponse.status);
+
         if (!verifyResponse.ok) {
+            console.log('❌ Resposta não OK do portal');
             return res.status(401).json({
                 error: 'Sessão inválida',
                 message: 'Sua sessão expirou ou foi invalidada',
@@ -78,8 +91,10 @@ async function verificarAutenticacao(req, res, next) {
         }
 
         const sessionData = await verifyResponse.json();
+        console.log('📋 Dados da sessão:', sessionData.valid ? 'VÁLIDA' : 'INVÁLIDA');
 
         if (!sessionData.valid) {
+            console.log('❌ Sessão marcada como inválida pelo portal');
             return res.status(401).json({
                 error: 'Sessão inválida',
                 message: sessionData.message || 'Sua sessão expirou',
@@ -91,6 +106,7 @@ async function verificarAutenticacao(req, res, next) {
         req.user = sessionData.session;
         req.sessionToken = sessionToken;
 
+        console.log('✅ Autenticação bem-sucedida para:', sessionData.session?.username);
         next();
     } catch (error) {
         console.error('❌ Erro ao verificar autenticação:', error);
@@ -122,9 +138,10 @@ app.use(express.static(publicPath, {
 }));
 
 // ==========================================
-// ======== HEALTH CHECK ====================
+// ======== HEALTH CHECK (PÚBLICO) ==========
 // ==========================================
 app.get('/health', async (req, res) => {
+    console.log('💚 Health check requisitado');
     try {
         const { error } = await supabase
             .from('cotacoes')
@@ -134,6 +151,7 @@ app.get('/health', async (req, res) => {
             status: error ? 'unhealthy' : 'healthy',
             database: error ? 'disconnected' : 'connected',
             supabase_url: supabaseUrl,
+            portal_url: PORTAL_URL,
             timestamp: new Date().toISOString(),
             publicPath: publicPath,
             authentication: 'enabled'
@@ -289,7 +307,7 @@ app.delete('/api/cotacoes/:id', async (req, res) => {
 });
 
 // ==========================================
-// ======== ROTA PRINCIPAL ==================
+// ======== ROTA PRINCIPAL (PÚBLICO) ========
 // ==========================================
 app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
@@ -336,8 +354,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🔗 Supabase URL: ${supabaseUrl}`);
     console.log(`📁 Public folder: ${publicPath}`);
     console.log(`🔐 Autenticação: Ativa ✅`);
-    console.log(`🔓 Filtro de IP: Removido ✅`);
     console.log(`🌐 Portal URL: ${PORTAL_URL}`);
+    console.log(`🔓 Rotas públicas: /, /health, /app`);
     console.log('🚀 ================================\n');
 });
 
