@@ -225,7 +225,6 @@ function showRealtimeUpdate() {
 
 async function checkServerStatus() {
     try {
-        // CORREÇÃO: Usar a URL correta do health check
         const response = await fetch('https://cotacoes-frete-aikc.onrender.com/health', { 
             method: 'GET',
             cache: 'no-cache'
@@ -411,7 +410,11 @@ async function handleSubmit(event) {
     }
 }
 
-function editCotacao(id) {
+// ==========================================
+// ======== EXPOR FUNÇÕES GLOBALMENTE =======
+// ==========================================
+// Esta é a CORREÇÃO principal: tornar as funções acessíveis via onclick
+window.editCotacao = function(id) {
     const cotacao = cotacoes.find(c => c.id === id);
     if (!cotacao) return;
 
@@ -436,9 +439,9 @@ function editCotacao(id) {
     document.getElementById('formCard').classList.remove('hidden');
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+};
 
-async function deleteCotacao(id) {
+window.deleteCotacao = async function(id) {
     if (!confirm('Tem certeza que deseja excluir esta cotação?')) return;
     
     const cotacaoBackup = cotacoes.find(c => c.id === id);
@@ -475,9 +478,9 @@ async function deleteCotacao(id) {
             }
         }
     }
-}
+};
 
-async function toggleNegocio(id) {
+window.toggleNegocio = async function(id) {
     const cotacao = cotacoes.find(c => c.id === id);
     if (!cotacao) return;
     
@@ -513,7 +516,7 @@ async function toggleNegocio(id) {
             showMessage('Erro ao atualizar. Status revertido.', 'error');
         }
     }
-}
+};
 
 function getFormData() {
     return {
