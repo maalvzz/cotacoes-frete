@@ -111,7 +111,7 @@ function startSessionCheck() {
 // ==========================================
 // ======== TELA DE ACESSO NEGADO ===========
 // ==========================================
-function mostrarTelaAcessoNegado(mensagem = 'Este acesso é restrito a usuários autenticados pelo Portal.') {
+function mostrarTelaAcessoNegado(mensagem = 'Somente usuários autenticados podem acessar esta área.') {
     document.body.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 100%); font-family: 'Inter', sans-serif;">
             <div style="text-align: center; padding: 3rem; background: white; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); max-width: 500px;">
