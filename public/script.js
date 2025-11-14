@@ -12,14 +12,60 @@ let currentTab = 0;
 const tabs = ['tab-geral', 'tab-transportadora', 'tab-detalhes'];
 
 console.log('🚀 Cotações de Frete iniciada');
-console.log('📡 API URL:', API_URL);
 
-// ============================================
-// INICIALIZAÇÃO
-// ============================================
 document.addEventListener('DOMContentLoaded', () => {
     verificarAutenticacao();
 });
+
+// ============================================
+// MODAL DE CONFIRMAÇÃO PERSONALIZADO
+// ============================================
+function showConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
+
+        const modalHTML = `
+            <div class="modal-overlay" id="confirmModal" style="z-index: 10001;">
+                <div class="modal-content" style="max-width: 450px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                    </div>
+                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
+                    <div class="modal-actions">
+                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
+                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = document.getElementById('confirmModal');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+
+        const closeModal = (result) => {
+            modal.style.animation = 'fadeOut 0.2s ease forwards';
+            setTimeout(() => { 
+                modal.remove(); 
+                resolve(result); 
+            }, 200);
+        };
+
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+        modal.addEventListener('click', (e) => { 
+            if (e.target === modal) closeModal(false); 
+        });
+
+        if (!document.querySelector('#modalAnimations')) {
+            const style = document.createElement('style');
+            style.id = 'modalAnimations';
+            style.textContent = `@keyframes fadeOut { to { opacity: 0; } }`;
+            document.head.appendChild(style);
+        }
+    });
+}
 
 // ============================================
 // AUTENTICAÇÃO
@@ -32,19 +78,15 @@ function verificarAutenticacao() {
         sessionToken = tokenFromUrl;
         sessionStorage.setItem('cotacoesFreteSession', sessionToken);
         window.history.replaceState({}, document.title, window.location.pathname);
-        console.log('✅ Token capturado da URL');
     } else {
         sessionToken = sessionStorage.getItem('cotacoesFreteSession');
-        console.log('✅ Token do sessionStorage');
     }
 
     if (!sessionToken) {
-        console.log('❌ Sem token - redirecionando');
         mostrarTelaAcessoNegado();
         return;
     }
 
-    console.log('✅ Autenticado - iniciando app');
     inicializarApp();
 }
 
@@ -109,8 +151,38 @@ function updateConnectionStatus() {
 }
 
 // ============================================
-// CARREGAMENTO DE DADOS
+// CARREGAMENTO DE DADOS COM MAPEAMENTO
 // ============================================
+function mapearCotacao(cotacao) {
+    // Mapeia as colunas do Supabase (maiúsculas) para o formato esperado
+    return {
+        id: cotacao.id,
+        timestamp: cotacao.timestamp,
+        
+        // Aba Geral - tenta minúscula primeiro, depois maiúscula
+        responsavel: cotacao.responsavel || cotacao.RESPONSAVEL || '',
+        documento: cotacao.documento || cotacao.DOCUMENTO || '',
+        vendedor: cotacao.vendedor || cotacao.VENDEDOR || '',
+        
+        // Aba Transportadora
+        transportadora: cotacao.transportadora || cotacao.TRANSPORTADORA || '',
+        destino: cotacao.destino || cotacao.DESTINO || '',
+        numeroCotacao: cotacao.numeroCotacao || cotacao.NUMEROCOTACAO || '',
+        valorFrete: cotacao.valorFrete || cotacao.VALORFRETE || cotacao.valor || cotacao.VALOR || 0,
+        previsaoEntrega: cotacao.previsaoEntrega || cotacao.PREVISAOENTREGA || cotacao.previsao || cotacao.PREVISAO || '',
+        canalComunicacao: cotacao.canalComunicacao || cotacao.CANALCOMUNICACAO || '',
+        codigoColeta: cotacao.codigoColeta || cotacao.CODIGOCOLETA || '',
+        responsavelTransportadora: cotacao.responsavelTransportadora || cotacao.RESPONSAVELTRANSPORTADORA || '',
+        
+        // Aba Detalhes
+        dataCotacao: cotacao.dataCotacao || cotacao.DATACOTACAO || cotacao.data || cotacao.DATA || '',
+        observacoes: cotacao.observacoes || cotacao.OBSERVACOES || '',
+        
+        // Status
+        negocioFechado: cotacao.negocioFechado || cotacao.NEGOCIOFECHADO || cotacao.status === 'fechado' || cotacao.STATUS === 'FECHADO' || false
+    };
+}
+
 async function loadCotacoes() {
     if (!isOnline) return;
 
@@ -130,23 +202,22 @@ async function loadCotacoes() {
             return;
         }
 
-        if (!response.ok) {
-            console.error('❌ Erro ao carregar:', response.status);
-            return;
-        }
+        if (!response.ok) return;
 
         const data = await response.json();
-        const newHash = JSON.stringify(data.map(c => c.id));
-
+        
+        // Mapeia todos os dados para o formato correto
+        cotacoes = data.map(mapearCotacao);
+        
+        const newHash = JSON.stringify(cotacoes.map(c => c.id));
         if (newHash !== lastDataHash) {
-            cotacoes = data;
             lastDataHash = newHash;
-            console.log(`📊 ${data.length} cotações carregadas`);
+            console.log(`📊 ${cotacoes.length} cotações carregadas e mapeadas`);
             updateTransportadorasFilter();
             filterCotacoes();
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar cotações:', error);
+        console.error('❌ Erro ao carregar:', error);
     }
 }
 
@@ -173,7 +244,7 @@ window.toggleNegocioFechado = async function(id) {
 
     if (isOnline) {
         try {
-            const response = await fetch(`${API_URL}/cotacoes/${id}`, {
+            const response = await fetch(`${API_URL}/cotacoes/${idStr}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -187,10 +258,9 @@ window.toggleNegocioFechado = async function(id) {
             if (!response.ok) throw new Error('Erro ao atualizar');
 
             const savedData = await response.json();
-            const index = cotacoes.findIndex(c => c.id === id);
-            if (index !== -1) cotacoes[index] = savedData;
+            const index = cotacoes.findIndex(c => String(c.id) === idStr);
+            if (index !== -1) cotacoes[index] = mapearCotacao(savedData);
         } catch (error) {
-            console.error('❌ Erro ao toggle:', error);
             cotacao.negocioFechado = !novoStatus;
             filterCotacoes();
             showMessage('Erro ao atualizar status', 'error');
@@ -199,7 +269,7 @@ window.toggleNegocioFechado = async function(id) {
 };
 
 // ============================================
-// FORMULÁRIO - ABRIR/FECHAR
+// FORMULÁRIO
 // ============================================
 window.toggleForm = function() {
     showFormModal(null);
@@ -214,11 +284,9 @@ function showFormModal(editingId = null) {
         cotacao = cotacoes.find(c => String(c.id) === idStr);
         
         if (!cotacao) {
-            console.error('❌ Cotação não encontrada no modal!', 'Buscando:', idStr);
             showMessage('Cotação não encontrada!', 'error');
             return;
         }
-        console.log('✅ Carregando cotação no formulário:', cotacao);
     }
 
     const modalHTML = `
@@ -320,7 +388,6 @@ function showFormModal(editingId = null) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     currentTab = 0;
     updateNavigationButtons();
-    
     setTimeout(() => document.getElementById('responsavel')?.focus(), 100);
 }
 
@@ -402,12 +469,10 @@ function updateNavigationButtons() {
 }
 
 // ============================================
-// SUBMIT DO FORMULÁRIO
+// SUBMIT
 // ============================================
 async function handleSubmit(event) {
     if (event) event.preventDefault();
-
-    console.log('📝 Iniciando submit...');
 
     const formData = {
         responsavel: document.getElementById('responsavel').value.trim(),
@@ -429,14 +494,12 @@ async function handleSubmit(event) {
     const editId = document.getElementById('editId').value;
 
     if (editId) {
-        const cotacaoExistente = cotacoes.find(c => c.id === editId);
+        const cotacaoExistente = cotacoes.find(c => String(c.id) === String(editId));
         if (cotacaoExistente) {
             formData.negocioFechado = cotacaoExistente.negocioFechado;
             formData.timestamp = cotacaoExistente.timestamp;
         }
     }
-
-    console.log('📦 Dados do formulário:', formData);
 
     closeFormModal();
 
@@ -449,8 +512,6 @@ async function handleSubmit(event) {
         const url = editId ? `${API_URL}/cotacoes/${editId}` : `${API_URL}/cotacoes`;
         const method = editId ? 'PUT' : 'POST';
 
-        console.log(`🌐 ${method} para ${url}`);
-
         const response = await fetch(url, {
             method,
             headers: {
@@ -462,8 +523,6 @@ async function handleSubmit(event) {
             mode: 'cors'
         });
 
-        console.log('📡 Resposta:', response.status);
-
         if (response.status === 401) {
             sessionStorage.removeItem('cotacoesFreteSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
@@ -472,19 +531,18 @@ async function handleSubmit(event) {
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('❌ Erro do servidor:', errorData);
             throw new Error(errorData.details || 'Erro ao salvar');
         }
 
         const savedData = await response.json();
-        console.log('✅ Dados salvos:', savedData);
+        const mappedData = mapearCotacao(savedData);
 
         if (editId) {
-            const index = cotacoes.findIndex(c => c.id === editId);
-            if (index !== -1) cotacoes[index] = savedData;
+            const index = cotacoes.findIndex(c => String(c.id) === String(editId));
+            if (index !== -1) cotacoes[index] = mappedData;
             showMessage('Cotação atualizada!', 'success');
         } else {
-            cotacoes.push(savedData);
+            cotacoes.push(mappedData);
             showMessage('Cotação criada!', 'success');
         }
 
@@ -493,7 +551,7 @@ async function handleSubmit(event) {
         filterCotacoes();
 
     } catch (error) {
-        console.error('❌ Erro ao salvar:', error);
+        console.error('❌ Erro:', error);
         showMessage(`Erro: ${error.message}`, 'error');
     }
 }
@@ -502,37 +560,43 @@ async function handleSubmit(event) {
 // EDIÇÃO
 // ============================================
 window.editCotacao = function(id) {
-    console.log('✏️ Editando cotação ID:', id, 'Tipo:', typeof id);
-    
-    // Converter ID para string para garantir comparação correta
     const idStr = String(id);
     const cotacao = cotacoes.find(c => String(c.id) === idStr);
     
     if (!cotacao) {
-        console.error('❌ Cotação não encontrada!', 'Buscando:', idStr, 'Disponíveis:', cotacoes.map(c => c.id));
         showMessage('Cotação não encontrada!', 'error');
         return;
     }
     
-    console.log('✅ Cotação encontrada:', cotacao);
     showFormModal(idStr);
 };
 
 // ============================================
-// EXCLUSÃO
+// EXCLUSÃO COM MODAL BONITO
 // ============================================
 window.deleteCotacao = async function(id) {
-    if (!confirm('Tem certeza que deseja excluir esta cotação?')) return;
+    const confirmed = await showConfirm(
+        'Tem certeza que deseja excluir esta cotação?',
+        {
+            title: 'Excluir Cotação',
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar',
+            type: 'warning'
+        }
+    );
+
+    if (!confirmed) return;
 
     const idStr = String(id);
     const deletedCotacao = cotacoes.find(c => String(c.id) === idStr);
     cotacoes = cotacoes.filter(c => String(c.id) !== idStr);
+    updateTransportadorasFilter();
     filterCotacoes();
     showMessage('Cotação excluída!', 'success');
 
     if (isOnline) {
         try {
-            const response = await fetch(`${API_URL}/cotacoes/${id}`, {
+            const response = await fetch(`${API_URL}/cotacoes/${idStr}`, {
                 method: 'DELETE',
                 headers: {
                     'X-Session-Token': sessionToken,
@@ -545,6 +609,7 @@ window.deleteCotacao = async function(id) {
         } catch (error) {
             if (deletedCotacao) {
                 cotacoes.push(deletedCotacao);
+                updateTransportadorasFilter();
                 filterCotacoes();
                 showMessage('Erro ao excluir', 'error');
             }
@@ -556,19 +621,13 @@ window.deleteCotacao = async function(id) {
 // VISUALIZAÇÃO
 // ============================================
 window.viewCotacao = function(id) {
-    console.log('👁️ Visualizando cotação ID:', id, 'Tipo:', typeof id);
-    
-    // Converter ID para string para garantir comparação correta
     const idStr = String(id);
     const cotacao = cotacoes.find(c => String(c.id) === idStr);
     
     if (!cotacao) {
-        console.error('❌ Cotação não encontrada!', 'Buscando:', idStr, 'Disponíveis:', cotacoes.map(c => c.id));
         showMessage('Cotação não encontrada!', 'error');
         return;
     }
-    
-    console.log('✅ Cotação encontrada:', cotacao);
 
     const modalHTML = `
         <div class="modal-overlay" id="viewModal">
@@ -701,10 +760,7 @@ function filterCotacoes() {
 function renderCotacoes(cotacoesToRender) {
     const container = document.getElementById('cotacoesContainer');
     
-    if (!container) {
-        console.error('❌ Container não encontrado');
-        return;
-    }
+    if (!container) return;
     
     if (!cotacoesToRender || cotacoesToRender.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhuma cotação encontrada</div>';
@@ -740,7 +796,7 @@ function renderCotacoes(cotacoesToRender) {
                             <td>${formatDate(c.dataCotacao)}</td>
                             <td><strong>${c.transportadora}</strong></td>
                             <td>${c.destino}</td>
-                            <td>${c.documento}</td>
+                            <td>${c.documento || 'N/A'}</td>
                             <td><strong>R$ ${parseFloat(c.valorFrete).toFixed(2)}</strong></td>
                             <td>${c.previsaoEntrega || '-'}</td>
                             <td>
@@ -773,7 +829,6 @@ function formatDate(dateString) {
 }
 
 function showMessage(message, type) {
-    console.log(`📢 ${type.toUpperCase()}: ${message}`);
     const messageDiv = document.getElementById('statusMessage');
     if (!messageDiv) return;
     messageDiv.textContent = message;
