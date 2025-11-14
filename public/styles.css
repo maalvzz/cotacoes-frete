@@ -307,6 +307,53 @@ tbody tr { background: var(--bg-card); }
 tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
 
+/* Efeito verde para negócios fechados */
+tbody tr.fechada {
+    background: rgba(34, 197, 94, 0.1) !important;
+    border-left: 3px solid var(--success-color);
+}
+
+tbody tr.fechada:hover {
+    background: rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Botão de Checkbox */
+.check-btn {
+    background: var(--input-bg);
+    border: 2px solid var(--border-color);
+    color: transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    margin: 0;
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.check-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+}
+
+.check-btn.checked {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.badge.aberta {
+    background: rgba(204, 112, 0, 0.2);
+    color: var(--primary-light);
+    border: 1px solid rgba(204, 112, 0, 0.3);
+}
+
 .status-message {
     position: fixed;
     top: 24px;
