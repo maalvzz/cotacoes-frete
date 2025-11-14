@@ -1,8 +1,6 @@
 // CONFIGURAÇÃO
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3001/api'
-    : `${window.location.origin}/api`;
+const API_URL = 'https://cotacoes-frete-mike.onrender.com/api';
 
 let cotacoes = [];
 let isOnline = false;
