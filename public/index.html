@@ -71,7 +71,7 @@
         const splashLogo = document.getElementById('splashLogo');
         
         if (isDarkMode) {
-            splashLogo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png';
+            splashLogo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PRETO.png';
         } else {
             splashLogo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-BRANCO.png';
         }
@@ -93,7 +93,7 @@
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
                 if (splashLogo) {
                     splashLogo.src = e.matches 
-                        ? 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png'
+                        ? 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PRETO.png'
                         : 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-BRANCO.png';
                 }
             });
