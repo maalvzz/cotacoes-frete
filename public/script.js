@@ -344,7 +344,13 @@ function showFormModal(editingId = null) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="responsavel">Responsável pela Cotação *</label>
-                                    <input type="text" id="responsavel" value="${cotacao?.responsavel || ''}" required>
+                                    <select id="responsavel" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO" ${cotacao?.responsavel === 'ROBERTO' ? 'selected' : ''}>ROBERTO</option>
+                                        <option value="ISAQUE" ${cotacao?.responsavel === 'ISAQUE' ? 'selected' : ''}>ISAQUE</option>
+                                        <option value="MIGUEL" ${cotacao?.responsavel === 'MIGUEL' ? 'selected' : ''}>MIGUEL</option>
+                                        <option value="GUSTAVO" ${cotacao?.responsavel === 'GUSTAVO' ? 'selected' : ''}>GUSTAVO</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="documento">Documento *</label>
@@ -352,7 +358,12 @@ function showFormModal(editingId = null) {
                                 </div>
                                 <div class="form-group">
                                     <label for="vendedor">Vendedor</label>
-                                    <input type="text" id="vendedor" value="${cotacao?.vendedor || ''}">
+                                    <select id="vendedor">
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO" ${cotacao?.vendedor === 'ROBERTO' ? 'selected' : ''}>ROBERTO</option>
+                                        <option value="ISAQUE" ${cotacao?.vendedor === 'ISAQUE' ? 'selected' : ''}>ISAQUE</option>
+                                        <option value="MIGUEL" ${cotacao?.vendedor === 'MIGUEL' ? 'selected' : ''}>MIGUEL</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
