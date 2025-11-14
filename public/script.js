@@ -161,7 +161,8 @@ function startPolling() {
 // TOGGLE NEGÓCIO FECHADO
 // ============================================
 window.toggleNegocioFechado = async function(id) {
-    const cotacao = cotacoes.find(c => c.id === id);
+    const idStr = String(id);
+    const cotacao = cotacoes.find(c => String(c.id) === idStr);
     if (!cotacao) return;
 
     const novoStatus = !cotacao.negocioFechado;
@@ -206,11 +207,18 @@ window.toggleForm = function() {
 
 function showFormModal(editingId = null) {
     const isEditing = editingId !== null;
-    const cotacao = isEditing ? cotacoes.find(c => c.id === editingId) : null;
-
-    if (isEditing && !cotacao) {
-        showMessage('Cotação não encontrada!', 'error');
-        return;
+    let cotacao = null;
+    
+    if (isEditing) {
+        const idStr = String(editingId);
+        cotacao = cotacoes.find(c => String(c.id) === idStr);
+        
+        if (!cotacao) {
+            console.error('❌ Cotação não encontrada no modal!', 'Buscando:', idStr);
+            showMessage('Cotação não encontrada!', 'error');
+            return;
+        }
+        console.log('✅ Carregando cotação no formulário:', cotacao);
     }
 
     const modalHTML = `
@@ -494,8 +502,20 @@ async function handleSubmit(event) {
 // EDIÇÃO
 // ============================================
 window.editCotacao = function(id) {
-    console.log('✏️ Editando cotação:', id);
-    showFormModal(id);
+    console.log('✏️ Editando cotação ID:', id, 'Tipo:', typeof id);
+    
+    // Converter ID para string para garantir comparação correta
+    const idStr = String(id);
+    const cotacao = cotacoes.find(c => String(c.id) === idStr);
+    
+    if (!cotacao) {
+        console.error('❌ Cotação não encontrada!', 'Buscando:', idStr, 'Disponíveis:', cotacoes.map(c => c.id));
+        showMessage('Cotação não encontrada!', 'error');
+        return;
+    }
+    
+    console.log('✅ Cotação encontrada:', cotacao);
+    showFormModal(idStr);
 };
 
 // ============================================
@@ -504,8 +524,9 @@ window.editCotacao = function(id) {
 window.deleteCotacao = async function(id) {
     if (!confirm('Tem certeza que deseja excluir esta cotação?')) return;
 
-    const deletedCotacao = cotacoes.find(c => c.id === id);
-    cotacoes = cotacoes.filter(c => c.id !== id);
+    const idStr = String(id);
+    const deletedCotacao = cotacoes.find(c => String(c.id) === idStr);
+    cotacoes = cotacoes.filter(c => String(c.id) !== idStr);
     filterCotacoes();
     showMessage('Cotação excluída!', 'success');
 
@@ -535,11 +556,19 @@ window.deleteCotacao = async function(id) {
 // VISUALIZAÇÃO
 // ============================================
 window.viewCotacao = function(id) {
-    const cotacao = cotacoes.find(c => c.id === id);
+    console.log('👁️ Visualizando cotação ID:', id, 'Tipo:', typeof id);
+    
+    // Converter ID para string para garantir comparação correta
+    const idStr = String(id);
+    const cotacao = cotacoes.find(c => String(c.id) === idStr);
+    
     if (!cotacao) {
+        console.error('❌ Cotação não encontrada!', 'Buscando:', idStr, 'Disponíveis:', cotacoes.map(c => c.id));
         showMessage('Cotação não encontrada!', 'error');
         return;
     }
+    
+    console.log('✅ Cotação encontrada:', cotacao);
 
     const modalHTML = `
         <div class="modal-overlay" id="viewModal">
