@@ -11,10 +11,10 @@ const PORT = process.env.PORT || 3001;
 // ======== CONFIGURAÇÃO DO SUPABASE ========
 // ==========================================
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // ✅ ALTERADO AQUI
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados'); // ✅ ALTERADO AQUI
+    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
     process.exit(1);
 }
 
@@ -22,13 +22,27 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 console.log('✅ Supabase configurado:', supabaseUrl);
 
 // ==========================================
-// ======== MIDDLEWARES =====================
+// ======== CORS - PERMITE TODOS OS DOMÍNIOS
 // ==========================================
 app.use(cors({
-    origin: '*',
+    origin: '*', // Permite qualquer origem
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'Accept'],
+    credentials: false
 }));
+
+// Adiciona headers CORS manualmente também
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, HEAD, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token, Accept');
+    
+    // Responde OPTIONS request imediatamente
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -42,8 +56,6 @@ app.use((req, res, next) => {
 // ==========================================
 // ======== MIDDLEWARE DE AUTENTICAÇÃO ======
 // ==========================================
-
-// ⚠️ CORREÇÃO: URL correta do portal
 const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
 
 console.log('🔐 Portal URL configurado:', PORTAL_URL);
@@ -126,13 +138,13 @@ console.log('📁 Pasta public:', publicPath);
 app.use(express.static(publicPath, {
     index: 'index.html',
     dotfiles: 'deny',
-    setHeaders: (res, path) => {
-        if (path.endsWith('.html')) {
-            res.setHeader('Content-Type', 'text/html');
-        } else if (path.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css');
-        } else if (path.endsWith('.js')) {
-            res.setHeader('Content-Type', 'application/javascript');
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        } else if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
     }
 }));
@@ -154,7 +166,8 @@ app.get('/health', async (req, res) => {
             portal_url: PORTAL_URL,
             timestamp: new Date().toISOString(),
             publicPath: publicPath,
-            authentication: 'enabled'
+            authentication: 'enabled',
+            cors: 'enabled - all origins'
         });
     } catch (error) {
         res.json({
@@ -227,8 +240,7 @@ app.post('/api/cotacoes', async (req, res) => {
         const novaCotacao = {
             ...req.body,
             id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            negocioFechado: req.body.negocioFechado || false
+            timestamp: new Date().toISOString()
         };
 
         const { data, error } = await supabase
@@ -355,6 +367,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📁 Public folder: ${publicPath}`);
     console.log(`🔐 Autenticação: Ativa ✅`);
     console.log(`🌐 Portal URL: ${PORTAL_URL}`);
+    console.log(`🌍 CORS: Liberado para todos`);
     console.log(`🔓 Rotas públicas: /, /health, /app`);
     console.log('🚀 ================================\n');
 });
