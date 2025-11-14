@@ -17,24 +17,25 @@
     <div class="app-content">
         <div class="container">
             <div class="header">
-                <h1>Cotações de Frete</h1>
+                <h1>📦 Cotações de Frete</h1>
                 <div id="connectionStatus" class="connection-status offline">
                     <span class="status-dot"></span>
+                    <span id="statusText">Offline</span>
                 </div>
             </div>
 
             <div id="statusMessage" class="status-message"></div>
 
             <div class="button-wrapper">
-                <button onclick="toggleForm()" class="register">Registrar Cotação</button>
+                <button onclick="toggleForm()" class="register">✚ Registrar Cotação</button>
             </div>
 
             <!-- NAVEGAÇÃO POR MESES -->
             <div class="card">
                 <div class="month-navigation">
-                    <button onclick="previousMonth()" class="month-nav-btn">Anterior</button>
+                    <button onclick="previousMonth()" class="month-nav-btn">◀ Anterior</button>
                     <h3 id="currentMonthDisplay" class="month-display">Carregando...</h3>
-                    <button onclick="nextMonth()" class="month-nav-btn">Próximo</button>
+                    <button onclick="nextMonth()" class="month-nav-btn">Próximo ▶</button>
                 </div>
             </div>
 
@@ -79,9 +80,10 @@
 
     <script>
         // Detectar tema e definir logo
-        const isDarkMode = !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const splashLogo = document.getElementById('splashLogo');
         
+        // Usar o mesmo caminho da Tabela de Preços
         if (isDarkMode) {
             splashLogo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png';
         } else {
@@ -89,8 +91,19 @@
         }
 
         splashLogo.onerror = function() {
-            console.log('❌ Erro ao carregar logo');
-            this.style.display = 'none';
+            console.log('❌ Logo não encontrada, tentando caminho alternativo...');
+            // Tenta caminho alternativo
+            if (isDarkMode) {
+                this.src = '../I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png';
+            } else {
+                this.src = '../I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-BRANCO.png';
+            }
+            
+            // Se ainda falhar, esconde a logo
+            this.onerror = function() {
+                console.log('❌ Logo não encontrada em nenhum caminho');
+                this.style.display = 'none';
+            };
         };
 
         // Esconder splash após 3 segundos
