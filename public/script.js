@@ -1,6 +1,6 @@
 // CONFIGURAÇÃO
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'https://cotacoes-frete-mike.onrender.com/api';
+const API_URL = 'https://cotacoes-frete-aikc.onrender.com/api';
 
 let cotacoes = [];
 let isOnline = false;
