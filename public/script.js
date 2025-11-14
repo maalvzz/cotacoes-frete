@@ -371,11 +371,21 @@ function showFormModal(editingId = null) {
                         <div class="tab-content" id="tab-transportadora">
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label for="transportadora">Transportadora *</label>
-                                    <input type="text" id="transportadora" value="${cotacao?.transportadora || ''}" required>
+                                     <label for="transportadora">transportadora</label>
+                                    <select id="transportadora">
+                                        <option value="">Selecione...</option>
+                                        <option value="TNT MERCÚRIO" ${cotacao?.transportadora === 'TNT MERCÚRIO' ? 'selected' : ''}>TNT MERCÚRIO</option>
+                                        <option value="JAMEF" ${cotacao?.transportadora=== 'JAMEF' ? 'selected' : ''}>JAMEF</option>
+                                        <option value="BRASPRESS" ${cotacao?.transportadora === 'BRASPRESS' ? 'selected' : ''}>BRASPRESS</option>
+                                        <option value="GENEROSO" ${cotacao?.transportadora === 'GENEROSO' ? 'selected' : ''}>GENEROSO</option>
+                                        <option value="CONTINENTAL" ${cotacao?.transportadora === 'CONTINENTAL' ? 'selected' : ''}>CONTINENTAL</option>
+                                        <option value="JEOLOG" ${cotacao?.transportadora === 'JEOLOG' ? 'selected' : ''}>JEOLOG</option>
+                                        <option value="TG TRANSPORTES" ${cotacao?.transportadora === 'TG TRANSPORTES' ? 'selected' : ''}>TG TRANSPORTES</option>
+                                        <option value="CORREIOS" ${cotacao?.transportadora === 'CORREIOS' ? 'selected' : ''}>CORREIOS</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="destino">Destino *</label>
+                                    <label for="destino">Cidade-UF *</label>
                                     <input type="text" id="destino" value="${cotacao?.destino || ''}" required>
                                 </div>
                                 <div class="form-group">
