@@ -9,13 +9,49 @@ let isOnline = false;
 let lastDataHash = '';
 let sessionToken = null;
 let currentTab = 0;
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
 const tabs = ['tab-geral', 'tab-transportadora', 'tab-detalhes'];
+
+const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 console.log('🚀 Cotações de Frete iniciada');
 
 document.addEventListener('DOMContentLoaded', () => {
     verificarAutenticacao();
 });
+
+// ============================================
+// NAVEGAÇÃO POR MESES
+// ============================================
+function updateMonthDisplay() {
+    const display = document.getElementById('currentMonthDisplay');
+    if (display) {
+        display.textContent = `${meses[currentMonth]} ${currentYear}`;
+    }
+    filterCotacoes();
+}
+
+window.previousMonth = function() {
+    currentMonth--;
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+    updateMonthDisplay();
+};
+
+window.nextMonth = function() {
+    currentMonth++;
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+    updateMonthDisplay();
+};
 
 // ============================================
 // MODAL DE CONFIRMAÇÃO PERSONALIZADO
@@ -76,7 +112,7 @@ function verificarAutenticacao() {
 
     if (tokenFromUrl) {
         sessionToken = tokenFromUrl;
-        sessionStorage.setItem('cotacoesFreteSession', sessionToken);
+        sessionStorage.setItem('cotacoesFreteSession', tokenFromUrl);
         window.history.replaceState({}, document.title, window.location.pathname);
     } else {
         sessionToken = sessionStorage.getItem('cotacoesFreteSession');
@@ -101,6 +137,7 @@ function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
 }
 
 function inicializarApp() {
+    updateMonthDisplay();
     checkServerStatus();
     setInterval(checkServerStatus, 15000);
     startPolling();
@@ -145,26 +182,25 @@ async function checkServerStatus() {
 
 function updateConnectionStatus() {
     const statusElement = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
     if (statusElement) {
         statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
+        if (statusText) {
+            statusText.textContent = isOnline ? 'Online' : 'Offline';
+        }
     }
 }
 
 // ============================================
-// CARREGAMENTO DE DADOS COM MAPEAMENTO
+// MAPEAMENTO DE COLUNAS
 // ============================================
 function mapearCotacao(cotacao) {
-    // Mapeia as colunas do Supabase (maiúsculas) para o formato esperado
     return {
         id: cotacao.id,
         timestamp: cotacao.timestamp,
-        
-        // Aba Geral - tenta minúscula primeiro, depois maiúscula
         responsavel: cotacao.responsavel || cotacao.RESPONSAVEL || '',
         documento: cotacao.documento || cotacao.DOCUMENTO || '',
         vendedor: cotacao.vendedor || cotacao.VENDEDOR || '',
-        
-        // Aba Transportadora
         transportadora: cotacao.transportadora || cotacao.TRANSPORTADORA || '',
         destino: cotacao.destino || cotacao.DESTINO || '',
         numeroCotacao: cotacao.numeroCotacao || cotacao.NUMEROCOTACAO || '',
@@ -173,16 +209,15 @@ function mapearCotacao(cotacao) {
         canalComunicacao: cotacao.canalComunicacao || cotacao.CANALCOMUNICACAO || '',
         codigoColeta: cotacao.codigoColeta || cotacao.CODIGOCOLETA || '',
         responsavelTransportadora: cotacao.responsavelTransportadora || cotacao.RESPONSAVELTRANSPORTADORA || '',
-        
-        // Aba Detalhes
         dataCotacao: cotacao.dataCotacao || cotacao.DATACOTACAO || cotacao.data || cotacao.DATA || '',
         observacoes: cotacao.observacoes || cotacao.OBSERVACOES || '',
-        
-        // Status
         negocioFechado: cotacao.negocioFechado || cotacao.NEGOCIOFECHADO || cotacao.status === 'fechado' || cotacao.STATUS === 'FECHADO' || false
     };
 }
 
+// ============================================
+// CARREGAMENTO DE DADOS
+// ============================================
 async function loadCotacoes() {
     if (!isOnline) return;
 
@@ -205,15 +240,13 @@ async function loadCotacoes() {
         if (!response.ok) return;
 
         const data = await response.json();
-        
-        // Mapeia todos os dados para o formato correto
         cotacoes = data.map(mapearCotacao);
         
         const newHash = JSON.stringify(cotacoes.map(c => c.id));
         if (newHash !== lastDataHash) {
             lastDataHash = newHash;
-            console.log(`📊 ${cotacoes.length} cotações carregadas e mapeadas`);
-            updateTransportadorasFilter();
+            console.log(`📊 ${cotacoes.length} cotações carregadas`);
+            updateAllFilters();
             filterCotacoes();
         }
     } catch (error) {
@@ -547,7 +580,7 @@ async function handleSubmit(event) {
         }
 
         lastDataHash = JSON.stringify(cotacoes.map(c => c.id));
-        updateTransportadorasFilter();
+        updateAllFilters();
         filterCotacoes();
 
     } catch (error) {
@@ -590,7 +623,7 @@ window.deleteCotacao = async function(id) {
     const idStr = String(id);
     const deletedCotacao = cotacoes.find(c => String(c.id) === idStr);
     cotacoes = cotacoes.filter(c => String(c.id) !== idStr);
-    updateTransportadorasFilter();
+    updateAllFilters();
     filterCotacoes();
     showMessage('Cotação excluída!', 'success');
 
@@ -609,7 +642,7 @@ window.deleteCotacao = async function(id) {
         } catch (error) {
             if (deletedCotacao) {
                 cotacoes.push(deletedCotacao);
-                updateTransportadorasFilter();
+                updateAllFilters();
                 filterCotacoes();
                 showMessage('Erro ao excluir', 'error');
             }
@@ -706,8 +739,13 @@ window.switchViewTab = function(index) {
 };
 
 // ============================================
-// FILTROS
+// FILTROS - ATUALIZAÇÃO DINÂMICA
 // ============================================
+function updateAllFilters() {
+    updateTransportadorasFilter();
+    updateResponsaveisFilter();
+}
+
 function updateTransportadorasFilter() {
     const transportadoras = new Set();
     cotacoes.forEach(c => {
@@ -730,16 +768,65 @@ function updateTransportadorasFilter() {
     }
 }
 
+function updateResponsaveisFilter() {
+    const responsaveis = new Set();
+    cotacoes.forEach(c => {
+        if (c.responsavel?.trim()) {
+            responsaveis.add(c.responsavel.trim());
+        }
+    });
+
+    const select = document.getElementById('filterResponsavel');
+    if (select) {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Todos</option>';
+        Array.from(responsaveis).sort().forEach(r => {
+            const option = document.createElement('option');
+            option.value = r;
+            option.textContent = r;
+            select.appendChild(option);
+        });
+        select.value = currentValue;
+    }
+}
+
+// ============================================
+// FILTROS E RENDERIZAÇÃO
+// ============================================
 function filterCotacoes() {
     const searchTerm = document.getElementById('search')?.value.toLowerCase() || '';
     const filterTransportadora = document.getElementById('filterTransportadora')?.value || '';
+    const filterResponsavel = document.getElementById('filterResponsavel')?.value || '';
+    const filterStatus = document.getElementById('filterStatus')?.value || '';
     
     let filtered = [...cotacoes];
 
+    // Filtro por mês/ano
+    filtered = filtered.filter(c => {
+        const data = new Date(c.dataCotacao + 'T00:00:00');
+        return data.getMonth() === currentMonth && data.getFullYear() === currentYear;
+    });
+
+    // Filtro por transportadora
     if (filterTransportadora) {
         filtered = filtered.filter(c => c.transportadora === filterTransportadora);
     }
 
+    // Filtro por responsável
+    if (filterResponsavel) {
+        filtered = filtered.filter(c => c.responsavel === filterResponsavel);
+    }
+
+    // Filtro por status
+    if (filterStatus) {
+        filtered = filtered.filter(c => {
+            if (filterStatus === 'aberto') return !c.negocioFechado;
+            if (filterStatus === 'fechado') return c.negocioFechado;
+            return true;
+        });
+    }
+
+    // Busca textual
     if (searchTerm) {
         filtered = filtered.filter(c => 
             c.transportadora?.toLowerCase().includes(searchTerm) ||
@@ -763,7 +850,7 @@ function renderCotacoes(cotacoesToRender) {
     if (!container) return;
     
     if (!cotacoesToRender || cotacoesToRender.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhuma cotação encontrada</div>';
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhuma cotação encontrada para este período</div>';
         return;
     }
 
