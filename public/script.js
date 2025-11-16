@@ -90,9 +90,6 @@ function showConfirm(message, options = {}) {
 
         confirmBtn.addEventListener('click', () => closeModal(true));
         cancelBtn.addEventListener('click', () => closeModal(false));
-        modal.addEventListener('click', (e) => { 
-            if (e.target === modal) closeModal(false); 
-        });
 
         if (!document.querySelector('#modalAnimations')) {
             const style = document.createElement('style');
@@ -273,7 +270,7 @@ window.toggleNegocioFechado = async function(id) {
     cotacao.negocioFechado = novoStatus;
     filterCotacoes();
     
-    showMessage(`Negócio marcado como ${novoStatus ? 'fechado' : 'aberto'}!`, 'success');
+    showMessage(`Negócio marcado como ${novoStatus ? 'aprovado' : 'reprovado'}!`, 'success');
 
     if (isOnline) {
         try {
@@ -327,7 +324,6 @@ function showFormModal(editingId = null) {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 class="modal-title">${isEditing ? 'Editar Cotação' : 'Nova Cotação'}</h3>
-                    <button class="close-modal" onclick="closeFormModal()">×</button>
                 </div>
                 
                 <div class="tabs-container">
@@ -371,11 +367,11 @@ function showFormModal(editingId = null) {
                         <div class="tab-content" id="tab-transportadora">
                             <div class="form-grid">
                                 <div class="form-group">
-                                     <label for="transportadora">transportadora</label>
+                                     <label for="transportadora">Transportadora</label>
                                     <select id="transportadora">
                                         <option value="">Selecione...</option>
                                         <option value="TNT MERCÚRIO" ${cotacao?.transportadora === 'TNT MERCÚRIO' ? 'selected' : ''}>TNT MERCÚRIO</option>
-                                        <option value="JAMEF" ${cotacao?.transportadora=== 'JAMEF' ? 'selected' : ''}>JAMEF</option>
+                                        <option value="JAMEF" ${cotacao?.transportadora === 'JAMEF' ? 'selected' : ''}>JAMEF</option>
                                         <option value="BRASPRESS" ${cotacao?.transportadora === 'BRASPRESS' ? 'selected' : ''}>BRASPRESS</option>
                                         <option value="GENEROSO" ${cotacao?.transportadora === 'GENEROSO' ? 'selected' : ''}>GENEROSO</option>
                                         <option value="CONTINENTAL" ${cotacao?.transportadora === 'CONTINENTAL' ? 'selected' : ''}>CONTINENTAL</option>
@@ -398,7 +394,7 @@ function showFormModal(editingId = null) {
                                 </div>
                                 <div class="form-group">
                                     <label for="previsaoEntrega">Previsão de Entrega</label>
-                                    <input type="text" id="previsaoEntrega" value="${cotacao?.previsaoEntrega || ''}" placeholder="Ex: 3 a 5 dias úteis">
+                                    <input type="date" id="previsaoEntrega" value="${cotacao?.previsaoEntrega || ''}">
                                 </div>
                                 <div class="form-group">
                                     <label for="canalComunicacao">Canal de Comunicação</label>
@@ -430,8 +426,8 @@ function showFormModal(editingId = null) {
 
                         <div class="modal-actions">
                             <button type="button" class="secondary" id="btnVoltar" onclick="previousTab()" style="display: none;">Voltar</button>
-                            <button type="button" class="secondary" onclick="closeFormModal()">Cancelar</button>
                             <button type="button" class="secondary" id="btnProximo" onclick="nextTab()">Próximo</button>
+                            <button type="button" class="secondary" onclick="closeFormModal()">Cancelar</button>
                         </div>
                     </form>
                 </div>
@@ -442,10 +438,29 @@ function showFormModal(editingId = null) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     currentTab = 0;
     updateNavigationButtons();
+    
+    // MAIÚSCULAS automáticas
+    const camposMaiusculas = ['documento', 'destino', 'numeroCotacao', 'canalComunicacao', 
+                               'codigoColeta', 'responsavelTransportadora', 'observacoes'];
+
+    camposMaiusculas.forEach(campoId => {
+        const campo = document.getElementById(campoId);
+        if (campo) {
+            campo.addEventListener('input', (e) => {
+                const start = e.target.selectionStart;
+                e.target.value = e.target.value.toUpperCase();
+                e.target.setSelectionRange(start, start);
+            });
+        }
+    });
+    
     setTimeout(() => document.getElementById('responsavel')?.focus(), 100);
 }
 
 function closeFormModal() {
+    const editId = document.getElementById('editId')?.value;
+    showMessage(editId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+    
     const modal = document.getElementById('formModal');
     if (modal) {
         modal.style.animation = 'fadeOut 0.2s ease forwards';
@@ -688,7 +703,6 @@ window.viewCotacao = function(id) {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 class="modal-title">Detalhes da Cotação</h3>
-                    <button class="close-modal" onclick="closeViewModal()">×</button>
                 </div>
                 
                 <div class="tabs-container">
@@ -704,7 +718,7 @@ window.viewCotacao = function(id) {
                             <p><strong>Responsável:</strong> ${cotacao.responsavel}</p>
                             <p><strong>Documento:</strong> ${cotacao.documento}</p>
                             ${cotacao.vendedor ? `<p><strong>Vendedor:</strong> ${cotacao.vendedor}</p>` : ''}
-                            <p><strong>Status:</strong> <span class="badge ${cotacao.negocioFechado ? 'fechada' : 'aberta'}">${cotacao.negocioFechado ? 'FECHADO' : 'ABERTO'}</span></p>
+                            <p><strong>Status:</strong> <span class="badge ${cotacao.negocioFechado ? 'fechada' : 'aberta'}">${cotacao.negocioFechado ? 'APROVADA' : 'REPROVADA'}</span></p>
                         </div>
                     </div>
 
@@ -715,7 +729,7 @@ window.viewCotacao = function(id) {
                             <p><strong>Destino:</strong> ${cotacao.destino}</p>
                             ${cotacao.numeroCotacao ? `<p><strong>Número da Cotação:</strong> ${cotacao.numeroCotacao}</p>` : ''}
                             <p><strong>Valor do Frete:</strong> R$ ${parseFloat(cotacao.valorFrete).toFixed(2)}</p>
-                            ${cotacao.previsaoEntrega ? `<p><strong>Previsão de Entrega:</strong> ${cotacao.previsaoEntrega}</p>` : ''}
+                            ${cotacao.previsaoEntrega ? `<p><strong>Previsão de Entrega:</strong> ${formatDateDDMMYYYY(cotacao.previsaoEntrega)}</p>` : ''}
                             ${cotacao.canalComunicacao ? `<p><strong>Canal de Comunicação:</strong> ${cotacao.canalComunicacao}</p>` : ''}
                             ${cotacao.codigoColeta ? `<p><strong>Código de Coleta:</strong> ${cotacao.codigoColeta}</p>` : ''}
                             ${cotacao.responsavelTransportadora ? `<p><strong>Responsável:</strong> ${cotacao.responsavelTransportadora}</p>` : ''}
@@ -897,7 +911,7 @@ function renderCotacoes(cotacoesToRender) {
                             <td style="text-align: center;">
                                 <button class="check-btn ${c.negocioFechado ? 'checked' : ''}" 
                                         onclick="toggleNegocioFechado('${c.id}')" 
-                                        title="${c.negocioFechado ? 'Marcar como aberto' : 'Marcar como fechado'}">
+                                        title="${c.negocioFechado ? 'Marcar como reprovada' : 'Marcar como aprovada'}">
                                     ✓
                                 </button>
                             </td>
@@ -906,10 +920,10 @@ function renderCotacoes(cotacoesToRender) {
                             <td>${c.destino}</td>
                             <td>${c.documento || 'N/A'}</td>
                             <td><strong>R$ ${parseFloat(c.valorFrete).toFixed(2)}</strong></td>
-                            <td>${c.previsaoEntrega || '-'}</td>
+                            <td>${formatDateDDMMYYYY(c.previsaoEntrega)}</td>
                             <td>
                                 <span class="badge ${c.negocioFechado ? 'fechada' : 'aberta'}">
-                                    ${c.negocioFechado ? 'FECHADO' : 'ABERTO'}
+                                    ${c.negocioFechado ? 'APROVADA' : 'REPROVADA'}
                                 </span>
                             </td>
                             <td class="actions-cell" style="text-align: center;">
@@ -936,10 +950,31 @@ function formatDate(dateString) {
     return date.toLocaleDateString('pt-BR');
 }
 
+function formatDateDDMMYYYY(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString + 'T00:00:00');
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
 function showMessage(message, type) {
-    const messageDiv = document.getElementById('statusMessage');
-    if (!messageDiv) return;
+    // Remove mensagens antigas
+    const oldMessages = document.querySelectorAll('.floating-message');
+    oldMessages.forEach(msg => msg.remove());
+    
+    // Cria nova mensagem flutuante
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
     messageDiv.textContent = message;
-    messageDiv.className = `status-message ${type} show`;
-    setTimeout(() => { messageDiv.className = `status-message ${type}`; }, 3000);
+    
+    // Adiciona no body para aparecer acima do modal
+    document.body.appendChild(messageDiv);
+    
+    // Remove após 3 segundos
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => messageDiv.remove(), 300);
+    }, 3000);
 }
