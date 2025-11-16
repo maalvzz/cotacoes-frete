@@ -23,8 +23,6 @@
                 </div>
             </div>
 
-            <div id="statusMessage" class="status-message"></div>
-
             <div class="button-wrapper">
                 <button onclick="toggleForm()" class="register">Nova Cotação</button>
             </div>
@@ -62,8 +60,8 @@
                         <label for="filterStatus">Status</label>
                         <select id="filterStatus" onchange="filterCotacoes()">
                             <option value="">Todos</option>
-                            <option value="aberto">Aberto</option>
-                            <option value="fechado">Fechado</option>
+                            <option value="aberto">Reprovada</option>
+                            <option value="fechado">Aprovada</option>
                         </select>
                     </div>
                 </div>
@@ -82,7 +80,6 @@
         const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const splashLogo = document.getElementById('splashLogo');
         
-        // Usar o mesmo caminho da Tabela de Preços
         if (isDarkMode) {
             splashLogo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png';
         } else {
@@ -90,19 +87,7 @@
         }
 
         splashLogo.onerror = function() {
-            console.log('❌ Logo não encontrada, tentando caminho alternativo...');
-            // Tenta caminho alternativo
-            if (isDarkMode) {
-                this.src = '../I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-ESCURO.png';
-            } else {
-                this.src = '../I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-BRANCO.png';
-            }
-            
-            // Se ainda falhar, esconde a logo
-            this.onerror = function() {
-                console.log('❌ Logo não encontrada em nenhum caminho');
-                this.style.display = 'none';
-            };
+            this.style.display = 'none';
         };
 
         // Esconder splash após 3 segundos
