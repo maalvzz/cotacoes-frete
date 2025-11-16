@@ -56,24 +56,6 @@ body {
     overflow-y: scroll;
 }
 
-/* Scrollbar personalizado */
-::-webkit-scrollbar {
-    width: 12px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-card);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #e68000;
-}
-
 /* ============================================
    SPLASH SCREEN
    ============================================ */
