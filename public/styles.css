@@ -52,10 +52,12 @@ body {
     background: var(--bg-secondary);
     color: var(--text-primary);
     line-height: 1.6;
+    /* Força scrollbar a aparecer sempre, evitando movimentação */
+    overflow-y: scroll;
 }
 
 /* ============================================
-   SPLASH SCREEN - ANIMAÇÃO SUAVE SEM DESLOCAMENTO
+   SPLASH SCREEN
    ============================================ */
 .splash-screen {
     position: fixed;
@@ -307,7 +309,7 @@ tbody tr { background: var(--bg-card); }
 tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
 
-/* Efeito verde para negócios fechados */
+/* Efeito verde para negócios aprovados */
 tbody tr.fechada {
     background: rgba(34, 197, 94, 0.1) !important;
     border-left: 3px solid var(--success-color);
@@ -348,13 +350,29 @@ tbody tr.fechada:hover {
     color: white;
 }
 
-.badge.aberta {
-    background: rgba(204, 112, 0, 0.2);
-    color: var(--primary-light);
-    border: 1px solid rgba(204, 112, 0, 0.3);
+/* Badge de status */
+.badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
-.status-message {
+.badge.aberta {
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+.badge.fechada {
+    background: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+
+/* Floating Messages */
+.floating-message {
     position: fixed;
     top: 24px;
     right: 24px;
@@ -362,21 +380,35 @@ tbody tr.fechada:hover {
     border-radius: 10px;
     font-weight: 500;
     font-size: 0.95rem;
-    z-index: 9999;
+    z-index: 9999999;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border: 1px solid;
-    display: none;
+    animation: slideIn 0.3s ease;
 }
 
-.status-message.show { display: block; animation: slideIn 0.3s ease; }
+.floating-message.success { 
+    background: #D1FAE5; 
+    color: #065F46; 
+    border-color: #A7F3D0; 
+}
+
+.floating-message.error { 
+    background: #FEE2E2; 
+    color: #991B1B; 
+    border-color: #FECACA; 
+}
 
 @keyframes slideIn {
     from { opacity: 0; transform: translateX(400px); }
     to { opacity: 1; transform: translateX(0); }
 }
 
-.status-message.success { background: #D1FAE5; color: #065F46; border-color: #A7F3D0; }
-.status-message.error { background: #FEE2E2; color: #991B1B; border-color: #FECACA; }
+@keyframes slideOut {
+    to {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+}
 
 /* MODAL */
 .modal-overlay {
@@ -429,21 +461,6 @@ tbody tr.fechada:hover {
     margin: 0;
 }
 
-.close-modal {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0;
-    margin: 0;
-    width: 32px;
-    height: 32px;
-    line-height: 1;
-}
-
-.close-modal:hover { color: var(--text-primary); }
-
 /* SISTEMA DE ABAS */
 .tabs-container {
     margin-bottom: 1.5rem;
@@ -459,20 +476,6 @@ tbody tr.fechada:hover {
     flex-wrap: wrap;
 }
 
-.tabs-nav::-webkit-scrollbar {
-    height: 6px;
-}
-
-.tabs-nav::-webkit-scrollbar-track {
-    background: var(--input-bg);
-    border-radius: 3px;
-}
-
-.tabs-nav::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 3px;
-}
-
 .tab-btn {
     background: transparent;
     border: none;
@@ -480,17 +483,13 @@ tbody tr.fechada:hover {
     color: var(--text-secondary);
     font-size: 0.9rem;
     font-weight: 600;
-    cursor: pointer;
+    cursor: default;
     border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
     white-space: nowrap;
     margin: 0;
     border-radius: 0;
-}
-
-.tab-btn:hover {
-    color: var(--primary);
-    background: transparent;
+    pointer-events: none;
 }
 
 .tab-btn.active {
@@ -550,43 +549,38 @@ tbody tr.fechada:hover {
 .hidden { display: none !important; }
 .button-wrapper { margin-bottom: 1.5rem; }
 
-.hidden { display: none !important; }
-.button-wrapper { margin-bottom: 1.5rem; }
-
 /* NAVEGAÇÃO POR MESES */
 .month-navigation {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: center;
+    gap: 2rem;
     padding: 1rem 0;
 }
 
 .month-display {
     font-size: 1.4rem;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--text-primary);
     margin: 0;
     text-align: center;
-    flex: 1;
+    min-width: 200px;
 }
 
 .month-nav-btn {
-    background: var(--primary);
-    color: white;
+    background: transparent;
+    color: var(--text-primary);
     border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
+    padding: 0;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 500;
     transition: all 0.2s ease;
-    min-width: 120px;
+    text-decoration: underline;
 }
 
 .month-nav-btn:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
+    opacity: 0.7;
 }
 
 @media (max-width: 768px) {
@@ -606,4 +600,5 @@ tbody tr.fechada:hover {
     .tabs-nav { flex-wrap: nowrap; }
     .tab-btn { font-size: 0.8rem; padding: 10px 15px; }
     .actions-cell { min-width: auto; }
+    .month-navigation { gap: 1rem; }
 }
